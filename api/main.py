@@ -21,13 +21,14 @@ if sys.platform == "win32":
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import init_database, init_apex_ops_database
-from api.routes import chat, agents, skills, mcp, analytics, conversations, projects
+from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth
 
 
 @asynccontextmanager
@@ -76,6 +77,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(conversations.router, prefix="/api", tags=["conversations"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
@@ -83,6 +85,11 @@ app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 app.include_router(projects.router, prefix="/api", tags=["projects"])
+
+# Serve static frontend files in production (must be last to not override API routes)
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")
 
 
 @app.get("/")

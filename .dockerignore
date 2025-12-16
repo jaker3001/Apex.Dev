@@ -1,0 +1,39 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Data files (mounted as volume)
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+_ul*
+*.log
+
+# Playwright
+.playwright-mcp/
+
+# Plans and Claude
+.claude/
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+tests/
+*.test.*

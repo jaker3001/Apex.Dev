@@ -6,12 +6,15 @@ This database manages restoration projects, clients, organizations, contacts,
 estimates, payments, and related business operations data.
 """
 
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
-# Database path (in project root)
-APEX_OPS_DB_PATH = Path(__file__).parent.parent / "apex_operations.db"
+# Database path - can be overridden via environment variable
+# This allows Docker to mount the database at a different location
+_default_ops_path = Path(__file__).parent.parent / "apex_operations.db"
+APEX_OPS_DB_PATH = Path(os.environ.get("APEX_OPS_DATABASE_PATH", str(_default_ops_path)))
 
 
 def get_ops_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:

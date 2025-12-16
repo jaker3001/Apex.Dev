@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  apex-assistant:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - apex-data:/data
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/data/apex_assistant.db
+      - APEX_OPS_DATABASE_PATH=/data/apex_operations.db
+    restart: unless-stopped
+
+volumes:
+  apex-data:

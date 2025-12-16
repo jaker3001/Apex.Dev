@@ -4,12 +4,15 @@ Apex Assistant - Database Schema
 Defines all SQLite tables for tracking activity, metrics, and automation opportunities.
 """
 
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
-# Default database path (in project root)
-DEFAULT_DB_PATH = Path(__file__).parent.parent / "apex_assistant.db"
+# Default database path - can be overridden via environment variable
+# This allows Docker to mount the database at a different location
+_default_path = Path(__file__).parent.parent / "apex_assistant.db"
+DEFAULT_DB_PATH = Path(os.environ.get("DATABASE_PATH", str(_default_path)))
 
 
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
