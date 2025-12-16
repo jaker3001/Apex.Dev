@@ -29,16 +29,18 @@ export function ChatPage() {
     isConnected,
     isStreaming,
     error,
+    currentModel,
     sendMessage,
+    updateModel,
     cancelStream,
     newConversation,
   } = useChat({
     onError: (err) => console.error('Chat error:', err),
+    onModelSwitch: (from, to) => console.log(`[Chat] Model switched from ${from} to ${to}`),
   });
 
-  // Chat mode and model state
+  // Chat mode state
   const [mode, setMode] = useState<'agent' | 'chat'>('agent');
-  const [model, setModel] = useState('claude-sonnet-4-5-20250514');
 
   // Project state (for Chat Mode)
   const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
@@ -80,8 +82,8 @@ export function ChatPage() {
         onNewChat={newConversation}
         mode={mode}
         onModeChange={handleModeChange}
-        model={model}
-        onModelChange={setModel}
+        model={currentModel}
+        onModelChange={updateModel}
         currentProject={currentProject?.name || null}
         onProjectSelect={() => setShowProjectSelector(true)}
       />

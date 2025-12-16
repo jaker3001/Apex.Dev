@@ -16,10 +16,23 @@ export interface ChatMessage {
   tools?: ToolUse[];
   isStreaming?: boolean;
   timestamp: Date;
+  model?: string;      // Model ID (e.g., 'claude-sonnet-4-5-20250514')
+  modelName?: string;  // Display name (e.g., 'Sonnet 4.5')
+}
+
+// Model switch indicator message
+export interface ModelSwitchMessage {
+  id: string;
+  type: 'model_switch';
+  fromModel: string;
+  fromModelName: string;
+  toModel: string;
+  toModelName: string;
+  timestamp: Date;
 }
 
 interface StreamEvent {
-  type: 'init' | 'stream_start' | 'text_delta' | 'tool_use' | 'tool_result' | 'stream_end' | 'error';
+  type: 'init' | 'stream_start' | 'text_delta' | 'tool_use' | 'tool_result' | 'stream_end' | 'error' | 'model_switch';
   session_id?: string;
   conversation_id?: number;
   content?: string;
@@ -31,13 +44,21 @@ interface StreamEvent {
     status: string;
   };
   task_id?: number;
+  message_id?: number;
   message?: string;
+  model?: string;
+  model_name?: string;
+  from_model?: string;
+  from_model_name?: string;
+  to_model?: string;
+  to_model_name?: string;
 }
 
 interface UseChatOptions {
   onError?: (error: string) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
+  onModelSwitch?: (fromModel: string, toModel: string) => void;
 }
 
 export function useChat(options: UseChatOptions = {}) {
@@ -45,11 +66,14 @@ export function useChat(options: UseChatOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState<string>('claude-sonnet-4-20250514');
 
   const wsRef = useRef<WebSocket | null>(null);
   const currentMessageRef = useRef<ChatMessage | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const modelRef = useRef<string>(currentModel);
 
   // Generate a session ID
   const generateSessionId = useCallback(() => {
@@ -111,10 +135,30 @@ export function useChat(options: UseChatOptions = {}) {
     switch (event.type) {
       case 'init':
         // Session initialized
+        if (event.conversation_id) {
+          setConversationId(event.conversation_id);
+        }
+        break;
+
+      case 'model_switch':
+        // Model was switched mid-conversation - add visual indicator
+        if (event.from_model && event.to_model) {
+          options.onModelSwitch?.(event.from_model, event.to_model);
+          // Add a divider message to show model switch
+          const switchMessage: ChatMessage = {
+            id: `switch-${Date.now()}`,
+            role: 'assistant',
+            content: `─── Switched to ${event.to_model_name} ───`,
+            timestamp: new Date(),
+            model: event.to_model,
+            modelName: event.to_model_name,
+          };
+          setMessages((prev) => [...prev, switchMessage]);
+        }
         break;
 
       case 'stream_start':
-        // Start a new assistant message
+        // Start a new assistant message with model info
         setIsStreaming(true);
         const newMessage: ChatMessage = {
           id: `msg-${Date.now()}`,
@@ -123,6 +167,8 @@ export function useChat(options: UseChatOptions = {}) {
           tools: [],
           isStreaming: true,
           timestamp: new Date(),
+          model: event.model,
+          modelName: event.model_name,
         };
         currentMessageRef.current = newMessage;
         setMessages((prev) => [...prev, newMessage]);
@@ -208,13 +254,15 @@ export function useChat(options: UseChatOptions = {}) {
     }
   }, [options]);
 
-  // Send a message
+  // Send a message with model
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, model?: string) => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         setError('Not connected');
         return;
       }
+
+      const messageModel = model || modelRef.current;
 
       // Add user message immediately
       const userMessage: ChatMessage = {
@@ -225,16 +273,23 @@ export function useChat(options: UseChatOptions = {}) {
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Send to server
+      // Send to server with model
       wsRef.current.send(
         JSON.stringify({
           type: 'message',
           content,
+          model: messageModel,
         })
       );
     },
     []
   );
+
+  // Update model (for mid-conversation switching)
+  const updateModel = useCallback((model: string) => {
+    setCurrentModel(model);
+    modelRef.current = model;
+  }, []);
 
   // Cancel current streaming response
   const cancelStream = useCallback(() => {
@@ -284,8 +339,11 @@ export function useChat(options: UseChatOptions = {}) {
     isConnected,
     isStreaming,
     sessionId,
+    conversationId,
     error,
+    currentModel,
     sendMessage,
+    updateModel,
     cancelStream,
     clearMessages,
     connect,

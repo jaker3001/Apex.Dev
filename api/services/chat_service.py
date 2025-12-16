@@ -62,6 +62,7 @@ class ChatService:
         self.session_id: str = str(uuid.uuid4())
         self.current_task_id: Optional[int] = None
         self.current_metrics: Optional[TaskMetrics] = None
+        self.current_model: Optional[str] = None  # Track current model for mid-conversation switching
 
         # Ensure database is initialized
         init_database(db_path)
@@ -129,18 +130,23 @@ class ChatService:
     async def send_message_streaming(
         self,
         user_input: str,
+        model: Optional[str] = None,
     ) -> AsyncGenerator[dict, None]:
         """
         Send a message and yield streaming events.
 
         Args:
             user_input: The user's message
+            model: Optional model ID to use for this message (supports mid-conversation switching)
 
         Yields:
             Events dict with type and data for WebSocket delivery:
             - {"type": "text_delta", "content": "..."}
             - {"type": "tool_use", "tool": {"name": "...", "input": {...}, "status": "running"}}
             - {"type": "tool_result", "tool": {"name": "...", "output": ..., "status": "completed"}}
+
+        Note: Model switching is handled by the Claude SDK. The model parameter allows
+        the frontend to request a specific model for each message.
         """
         if not self.client:
             raise RuntimeError("Session not started. Call start_session() first.")
@@ -154,6 +160,11 @@ class ChatService:
             input_type="text",
             db_path=self.db_path,
         )
+
+        # Switch model if requested and different from current
+        if model and model != self.current_model:
+            await self.client.set_model(model)
+            self.current_model = model
 
         # Send message to Claude
         await self.client.query(user_input)

@@ -74,7 +74,28 @@ def init_database(db_path: Optional[Path] = None) -> None:
             summary TEXT,
             related_task_ids TEXT,  -- JSON array of task IDs
             session_id TEXT,  -- Claude SDK session ID for resuming
-            is_active INTEGER DEFAULT 1
+            is_active INTEGER DEFAULT 1,
+            title TEXT,  -- Auto-generated from first message
+            last_model_id TEXT,  -- Last model used in conversation
+            message_count INTEGER DEFAULT 0
+        )
+    """)
+
+    # =========================================================================
+    # MESSAGES TABLE
+    # Individual messages within conversations with model tracking
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id INTEGER NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+            content TEXT,
+            model_id TEXT,  -- e.g., 'claude-sonnet-4-5-20250514'
+            model_name TEXT,  -- e.g., 'Sonnet 4.5' (display name)
+            tools_used TEXT,  -- JSON array of tool objects
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
     """)
 
@@ -151,6 +172,22 @@ def init_database(db_path: Optional[Path] = None) -> None:
     """)
 
     # =========================================================================
+    # ACTIVITY_LOGS TABLE
+    # Centralized logging for debugging and troubleshooting
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            log_type TEXT NOT NULL,  -- 'api', 'websocket', 'model', 'mcp', 'claude', 'tool', 'error'
+            session_id TEXT,
+            conversation_id INTEGER,
+            data TEXT,  -- JSON with log details
+            severity TEXT DEFAULT 'info' CHECK (severity IN ('debug', 'info', 'warning', 'error'))
+        )
+    """)
+
+    # =========================================================================
     # CREATE INDEXES FOR COMMON QUERIES
     # =========================================================================
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
@@ -162,10 +199,47 @@ def init_database(db_path: Optional[Path] = None) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_files_task ON files_processed(task_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_status ON mcp_connections(status)")
 
+    # Message indexes
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
+
+    # Activity log indexes
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_type ON activity_logs(log_type)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON activity_logs(timestamp)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_session ON activity_logs(session_id)")
+
+    # =========================================================================
+    # SCHEMA MIGRATIONS - Add columns to existing tables
+    # =========================================================================
+    _run_migrations(cursor)
+
     conn.commit()
     conn.close()
 
     print(f"Database initialized at: {db_path or DEFAULT_DB_PATH}")
+
+
+def _run_migrations(cursor: sqlite3.Cursor) -> None:
+    """Run database migrations to add new columns to existing tables."""
+
+    # Check which columns exist in conversations table
+    cursor.execute("PRAGMA table_info(conversations)")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+
+    # Add title column if missing
+    if "title" not in existing_columns:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN title TEXT")
+        print("Migration: Added 'title' column to conversations")
+
+    # Add last_model_id column if missing
+    if "last_model_id" not in existing_columns:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN last_model_id TEXT")
+        print("Migration: Added 'last_model_id' column to conversations")
+
+    # Add message_count column if missing
+    if "message_count" not in existing_columns:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN message_count INTEGER DEFAULT 0")
+        print("Migration: Added 'message_count' column to conversations")
 
 
 if __name__ == "__main__":

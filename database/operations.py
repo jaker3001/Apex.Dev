@@ -489,3 +489,206 @@ def update_mcp_connection_status(
 
     conn.commit()
     conn.close()
+
+
+# =============================================================================
+# MESSAGE OPERATIONS
+# =============================================================================
+
+def create_message(
+    conversation_id: int,
+    role: str,
+    content: Optional[str] = None,
+    model_id: Optional[str] = None,
+    model_name: Optional[str] = None,
+    tools_used: Optional[list] = None,
+    db_path: Optional[Path] = None
+) -> int:
+    """Create a new message and return its ID."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    tools_json = json.dumps(tools_used) if tools_used else None
+
+    cursor.execute("""
+        INSERT INTO messages (conversation_id, role, content, model_id, model_name, tools_used)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (conversation_id, role, content, model_id, model_name, tools_json))
+
+    message_id = cursor.lastrowid
+
+    # Update conversation message count and last model
+    cursor.execute("""
+        UPDATE conversations
+        SET message_count = message_count + 1,
+            last_model_id = COALESCE(?, last_model_id)
+        WHERE id = ?
+    """, (model_id, conversation_id))
+
+    conn.commit()
+    conn.close()
+    return message_id
+
+
+def get_messages_by_conversation(
+    conversation_id: int,
+    limit: Optional[int] = None,
+    db_path: Optional[Path] = None
+) -> list[dict]:
+    """Get all messages for a conversation."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    query = """
+        SELECT * FROM messages
+        WHERE conversation_id = ?
+        ORDER BY timestamp ASC
+    """
+    if limit:
+        query += f" LIMIT {limit}"
+
+    cursor.execute(query, (conversation_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    messages = []
+    for row in rows:
+        msg = dict(row)
+        if msg.get("tools_used"):
+            msg["tools_used"] = json.loads(msg["tools_used"])
+        messages.append(msg)
+    return messages
+
+
+def get_conversations_with_preview(
+    limit: int = 50,
+    include_inactive: bool = False,
+    db_path: Optional[Path] = None
+) -> list[dict]:
+    """Get conversations with first message preview."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    query = """
+        SELECT
+            c.id,
+            c.timestamp,
+            c.title,
+            c.session_id,
+            c.is_active,
+            c.last_model_id,
+            c.message_count,
+            (SELECT content FROM messages m
+             WHERE m.conversation_id = c.id
+             ORDER BY m.timestamp ASC LIMIT 1) as preview
+        FROM conversations c
+    """
+    if not include_inactive:
+        query += " WHERE c.is_active = 1"
+    query += " ORDER BY c.timestamp DESC LIMIT ?"
+
+    cursor.execute(query, (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def update_conversation_title(
+    conversation_id: int,
+    title: str,
+    db_path: Optional[Path] = None
+) -> None:
+    """Update a conversation's title."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE conversations SET title = ? WHERE id = ?
+    """, (title, conversation_id))
+
+    conn.commit()
+    conn.close()
+
+
+def delete_conversation(
+    conversation_id: int,
+    db_path: Optional[Path] = None
+) -> None:
+    """Delete a conversation and all its messages."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    # Messages will be deleted via CASCADE, but let's be explicit
+    cursor.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+    cursor.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+
+    conn.commit()
+    conn.close()
+
+
+# =============================================================================
+# ACTIVITY LOG OPERATIONS
+# =============================================================================
+
+def log_activity(
+    log_type: str,
+    data: dict,
+    session_id: Optional[str] = None,
+    conversation_id: Optional[int] = None,
+    severity: str = "info",
+    db_path: Optional[Path] = None
+) -> int:
+    """Log an activity for debugging/troubleshooting."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO activity_logs (log_type, session_id, conversation_id, data, severity)
+        VALUES (?, ?, ?, ?, ?)
+    """, (log_type, session_id, conversation_id, json.dumps(data), severity))
+
+    log_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return log_id
+
+
+def get_activity_logs(
+    log_type: Optional[str] = None,
+    session_id: Optional[str] = None,
+    severity: Optional[str] = None,
+    limit: int = 100,
+    db_path: Optional[Path] = None
+) -> list[dict]:
+    """Get activity logs with optional filtering."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM activity_logs WHERE 1=1"
+    params = []
+
+    if log_type:
+        query += " AND log_type = ?"
+        params.append(log_type)
+    if session_id:
+        query += " AND session_id = ?"
+        params.append(session_id)
+    if severity:
+        query += " AND severity = ?"
+        params.append(severity)
+
+    query += " ORDER BY timestamp DESC LIMIT ?"
+    params.append(limit)
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    logs = []
+    for row in rows:
+        log = dict(row)
+        if log.get("data"):
+            log["data"] = json.loads(log["data"])
+        logs.append(log)
+    return logs

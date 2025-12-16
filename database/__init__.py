@@ -15,6 +15,12 @@ from .operations import (
     create_conversation,
     update_conversation,
     get_conversation,
+    # Message operations
+    create_message,
+    get_messages_by_conversation,
+    get_conversations_with_preview,
+    update_conversation_title,
+    delete_conversation,
     # Agent operations
     register_agent,
     update_agent_usage,
@@ -31,6 +37,9 @@ from .operations import (
     save_mcp_connection,
     get_mcp_connections,
     update_mcp_connection_status,
+    # Activity log operations
+    log_activity,
+    get_activity_logs,
 )
 
 __all__ = [
@@ -43,6 +52,11 @@ __all__ = [
     "create_conversation",
     "update_conversation",
     "get_conversation",
+    "create_message",
+    "get_messages_by_conversation",
+    "get_conversations_with_preview",
+    "update_conversation_title",
+    "delete_conversation",
     "register_agent",
     "update_agent_usage",
     "get_agent",
@@ -55,4 +69,6 @@ __all__ = [
     "save_mcp_connection",
     "get_mcp_connections",
     "update_mcp_connection_status",
+    "log_activity",
+    "get_activity_logs",
 ]

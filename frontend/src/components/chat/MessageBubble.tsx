@@ -1,4 +1,4 @@
-import { User, Bot } from 'lucide-react';
+import { User, Bot, Zap } from 'lucide-react';
 import { ToolUsage } from './ToolUsage';
 import type { ChatMessage } from '@/hooks/useChat';
 
@@ -56,13 +56,22 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Timestamp */}
-        <p className="text-xs text-muted-foreground mt-1">
-          {message.timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </p>
+        {/* Model indicator and Timestamp */}
+        <div className="flex items-center gap-2 mt-1">
+          {/* Show model for assistant messages */}
+          {!isUser && message.modelName && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Zap className="h-3 w-3 text-yellow-500" />
+              {message.modelName}
+            </span>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {message.timestamp.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        </div>
       </div>
     </div>
   );
