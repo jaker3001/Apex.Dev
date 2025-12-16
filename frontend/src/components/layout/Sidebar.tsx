@@ -9,6 +9,7 @@ import {
   BookOpen,
   Settings,
   Plus,
+  Briefcase,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -62,6 +63,19 @@ export function Sidebar() {
             Chat
           </p>
           <NavItem to="/" icon={<MessageSquare className="h-4 w-4" />} label="Chat" />
+        </div>
+
+        {/* Divider */}
+        <div className="border-t my-4" />
+
+        {/* Operations Section */}
+        <div className="mb-4">
+          <p className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Operations
+          </p>
+          <div className="space-y-1">
+            <NavItem to="/projects" icon={<Briefcase className="h-4 w-4" />} label="Projects" />
+          </div>
         </div>
 
         {/* Divider */}

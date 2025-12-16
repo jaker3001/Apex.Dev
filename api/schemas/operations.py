@@ -1,0 +1,573 @@
+"""
+Apex Assistant - Operations Schemas
+
+Pydantic models for project management operations including:
+- Organizations (carriers, TPAs, vendors)
+- Contacts (adjusters, vendors, employees)
+- Clients (property owners)
+- Projects (restoration jobs)
+- Notes, Estimates, Payments
+"""
+
+from typing import Optional, List, Literal
+from pydantic import BaseModel
+from datetime import datetime
+
+
+# =============================================================================
+# ORGANIZATION SCHEMAS
+# =============================================================================
+
+class OrganizationCreate(BaseModel):
+    """Schema for creating a new organization."""
+    name: str
+    org_type: Literal["insurance_carrier", "tpa", "vendor", "internal"]
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    has_msa: bool = False
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    trade_category: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+
+
+class OrganizationUpdate(BaseModel):
+    """Schema for updating an organization (all fields optional)."""
+    name: Optional[str] = None
+    org_type: Optional[Literal["insurance_carrier", "tpa", "vendor", "internal"]] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    has_msa: Optional[bool] = None
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    trade_category: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class OrganizationResponse(BaseModel):
+    """Response schema for an organization."""
+    id: int
+    name: str
+    org_type: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    has_msa: bool = False
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    trade_category: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[str] = None
+
+
+class OrganizationListResponse(BaseModel):
+    """Response schema for listing organizations."""
+    organizations: List[OrganizationResponse]
+    total: int
+
+
+# =============================================================================
+# CONTACT SCHEMAS
+# =============================================================================
+
+class ContactCreate(BaseModel):
+    """Schema for creating a new contact."""
+    organization_id: Optional[int] = None
+    first_name: str
+    last_name: str
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    phone_extension: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+
+
+class ContactUpdate(BaseModel):
+    """Schema for updating a contact (all fields optional)."""
+    organization_id: Optional[int] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    phone_extension: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ContactResponse(BaseModel):
+    """Response schema for a contact."""
+    id: int
+    organization_id: Optional[int] = None
+    first_name: str
+    last_name: str
+    full_name: Optional[str] = None  # Computed field
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    phone_extension: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[str] = None
+    # When included from view
+    organization: Optional[str] = None
+    org_type: Optional[str] = None
+
+
+class ContactListResponse(BaseModel):
+    """Response schema for listing contacts."""
+    contacts: List[ContactResponse]
+    total: int
+
+
+# =============================================================================
+# CLIENT SCHEMAS
+# =============================================================================
+
+class ClientCreate(BaseModel):
+    """Schema for creating a new client."""
+    name: str
+    client_type: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+
+
+class ClientUpdate(BaseModel):
+    """Schema for updating a client (all fields optional)."""
+    name: Optional[str] = None
+    client_type: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ClientResponse(BaseModel):
+    """Response schema for a client."""
+    id: int
+    name: str
+    client_type: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[str] = None
+
+
+class ClientListResponse(BaseModel):
+    """Response schema for listing clients."""
+    clients: List[ClientResponse]
+    total: int
+
+
+# =============================================================================
+# PROJECT SCHEMAS
+# =============================================================================
+
+ProjectStatus = Literal["lead", "pending", "active", "complete", "closed", "cancelled"]
+
+
+class ProjectCreate(BaseModel):
+    """Schema for creating a new project."""
+    job_number: str
+    status: ProjectStatus = "lead"
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    year_built: Optional[int] = None
+    structure_type: Optional[str] = None
+    square_footage: Optional[int] = None
+    num_stories: Optional[int] = None
+    damage_source: Optional[str] = None
+    damage_category: Optional[str] = None
+    damage_class: Optional[str] = None
+    date_of_loss: Optional[str] = None
+    date_contacted: Optional[str] = None
+    inspection_date: Optional[str] = None
+    work_auth_signed_date: Optional[str] = None
+    start_date: Optional[str] = None
+    cos_date: Optional[str] = None
+    completion_date: Optional[str] = None
+    claim_number: Optional[str] = None
+    policy_number: Optional[str] = None
+    deductible: Optional[float] = None
+    client_id: Optional[int] = None
+    insurance_org_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    """Schema for updating a project (all fields optional)."""
+    job_number: Optional[str] = None
+    status: Optional[ProjectStatus] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    year_built: Optional[int] = None
+    structure_type: Optional[str] = None
+    square_footage: Optional[int] = None
+    num_stories: Optional[int] = None
+    damage_source: Optional[str] = None
+    damage_category: Optional[str] = None
+    damage_class: Optional[str] = None
+    date_of_loss: Optional[str] = None
+    date_contacted: Optional[str] = None
+    inspection_date: Optional[str] = None
+    work_auth_signed_date: Optional[str] = None
+    start_date: Optional[str] = None
+    cos_date: Optional[str] = None
+    completion_date: Optional[str] = None
+    claim_number: Optional[str] = None
+    policy_number: Optional[str] = None
+    deductible: Optional[float] = None
+    client_id: Optional[int] = None
+    insurance_org_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class ProjectResponse(BaseModel):
+    """Response schema for a project (basic info)."""
+    id: int
+    job_number: str
+    status: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    year_built: Optional[int] = None
+    structure_type: Optional[str] = None
+    square_footage: Optional[int] = None
+    num_stories: Optional[int] = None
+    damage_source: Optional[str] = None
+    damage_category: Optional[str] = None
+    damage_class: Optional[str] = None
+    date_of_loss: Optional[str] = None
+    date_contacted: Optional[str] = None
+    inspection_date: Optional[str] = None
+    work_auth_signed_date: Optional[str] = None
+    start_date: Optional[str] = None
+    cos_date: Optional[str] = None
+    completion_date: Optional[str] = None
+    claim_number: Optional[str] = None
+    policy_number: Optional[str] = None
+    deductible: Optional[float] = None
+    client_id: Optional[int] = None
+    insurance_org_id: Optional[int] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # From v_projects view
+    client_name: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
+    insurance_carrier: Optional[str] = None
+
+
+class ProjectListResponse(BaseModel):
+    """Response schema for listing projects."""
+    projects: List[ProjectResponse]
+    total: int
+
+
+class ProjectStatsResponse(BaseModel):
+    """Response schema for project statistics."""
+    total: int
+    by_status: dict
+    active: int
+    lead: int
+    complete: int
+
+
+# =============================================================================
+# NOTE SCHEMAS
+# =============================================================================
+
+class NoteCreate(BaseModel):
+    """Schema for creating a new note."""
+    project_id: int
+    author_id: Optional[int] = None
+    note_type: Optional[str] = None
+    subject: Optional[str] = None
+    content: str
+
+
+class NoteUpdate(BaseModel):
+    """Schema for updating a note (all fields optional)."""
+    author_id: Optional[int] = None
+    note_type: Optional[str] = None
+    subject: Optional[str] = None
+    content: Optional[str] = None
+
+
+class NoteResponse(BaseModel):
+    """Response schema for a note."""
+    id: int
+    project_id: int
+    author_id: Optional[int] = None
+    note_type: Optional[str] = None
+    subject: Optional[str] = None
+    content: str
+    created_at: Optional[str] = None
+    # Computed/joined fields
+    author_name: Optional[str] = None
+
+
+class NoteListResponse(BaseModel):
+    """Response schema for listing notes."""
+    notes: List[NoteResponse]
+    total: int
+
+
+# =============================================================================
+# ESTIMATE SCHEMAS
+# =============================================================================
+
+EstimateStatus = Literal["draft", "submitted", "approved", "revision_requested", "denied"]
+
+
+class EstimateCreate(BaseModel):
+    """Schema for creating a new estimate."""
+    project_id: int
+    version: int = 1
+    estimate_type: Optional[str] = None
+    amount: Optional[float] = None
+    status: EstimateStatus = "draft"
+    submitted_date: Optional[str] = None
+    approved_date: Optional[str] = None
+    xactimate_file_path: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class EstimateUpdate(BaseModel):
+    """Schema for updating an estimate (all fields optional)."""
+    version: Optional[int] = None
+    estimate_type: Optional[str] = None
+    amount: Optional[float] = None
+    status: Optional[EstimateStatus] = None
+    submitted_date: Optional[str] = None
+    approved_date: Optional[str] = None
+    xactimate_file_path: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class EstimateResponse(BaseModel):
+    """Response schema for an estimate."""
+    id: int
+    project_id: int
+    version: int = 1
+    estimate_type: Optional[str] = None
+    amount: Optional[float] = None
+    status: str = "draft"
+    submitted_date: Optional[str] = None
+    approved_date: Optional[str] = None
+    xactimate_file_path: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class EstimateListResponse(BaseModel):
+    """Response schema for listing estimates."""
+    estimates: List[EstimateResponse]
+    total: int
+
+
+# =============================================================================
+# PAYMENT SCHEMAS
+# =============================================================================
+
+class PaymentCreate(BaseModel):
+    """Schema for creating a new payment."""
+    project_id: int
+    estimate_id: Optional[int] = None
+    invoice_number: Optional[str] = None
+    amount: float
+    payment_type: Optional[str] = None
+    payment_method: Optional[str] = None
+    check_number: Optional[str] = None
+    received_date: Optional[str] = None
+    deposited_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PaymentUpdate(BaseModel):
+    """Schema for updating a payment (all fields optional)."""
+    estimate_id: Optional[int] = None
+    invoice_number: Optional[str] = None
+    amount: Optional[float] = None
+    payment_type: Optional[str] = None
+    payment_method: Optional[str] = None
+    check_number: Optional[str] = None
+    received_date: Optional[str] = None
+    deposited_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class PaymentResponse(BaseModel):
+    """Response schema for a payment."""
+    id: int
+    project_id: int
+    estimate_id: Optional[int] = None
+    invoice_number: Optional[str] = None
+    amount: float
+    payment_type: Optional[str] = None
+    payment_method: Optional[str] = None
+    check_number: Optional[str] = None
+    received_date: Optional[str] = None
+    deposited_date: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class PaymentListResponse(BaseModel):
+    """Response schema for listing payments."""
+    payments: List[PaymentResponse]
+    total: int
+
+
+# =============================================================================
+# PROJECT CONTACT (LINK TABLE) SCHEMAS
+# =============================================================================
+
+class ProjectContactCreate(BaseModel):
+    """Schema for assigning a contact to a project."""
+    contact_id: int
+    role_on_project: Optional[str] = None
+    assigned_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ProjectContactResponse(BaseModel):
+    """Response schema for a project contact assignment."""
+    id: int
+    organization_id: Optional[int] = None
+    first_name: str
+    last_name: str
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    phone_extension: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[int] = 1
+    created_at: Optional[str] = None
+    # From join with organizations
+    organization_name: Optional[str] = None
+    org_type: Optional[str] = None
+    role_on_project: Optional[str] = None
+    assignment_id: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ProjectContactListResponse(BaseModel):
+    """Response schema for listing project contacts."""
+    contacts: List[ProjectContactResponse]
+    total: int
+
+
+# =============================================================================
+# PROJECT FULL RESPONSE (INCLUDES ALL RELATED DATA)
+# =============================================================================
+
+class ProjectContactDetail(BaseModel):
+    """Contact details as returned in project full response."""
+    id: int
+    organization_id: Optional[int] = None
+    first_name: str
+    last_name: str
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    phone_extension: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[int] = 1
+    created_at: Optional[str] = None
+    organization_name: Optional[str] = None
+    org_type: Optional[str] = None
+    role_on_project: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ProjectFullResponse(BaseModel):
+    """
+    Complete project response including all related data.
+    Used for the project detail page.
+
+    Project fields are at the root level, with nested client, carrier,
+    contacts, notes, estimates, and payments.
+    """
+    # Project fields (at root)
+    id: int
+    job_number: str
+    status: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    year_built: Optional[int] = None
+    structure_type: Optional[str] = None
+    square_footage: Optional[int] = None
+    num_stories: Optional[int] = None
+    damage_source: Optional[str] = None
+    damage_category: Optional[str] = None
+    damage_class: Optional[str] = None
+    date_of_loss: Optional[str] = None
+    date_contacted: Optional[str] = None
+    inspection_date: Optional[str] = None
+    work_auth_signed_date: Optional[str] = None
+    start_date: Optional[str] = None
+    cos_date: Optional[str] = None
+    completion_date: Optional[str] = None
+    claim_number: Optional[str] = None
+    policy_number: Optional[str] = None
+    deductible: Optional[float] = None
+    notes: Optional[List[NoteResponse]] = []
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # From v_projects view
+    client_name: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
+    insurance_carrier: Optional[str] = None
+    # Related data
+    client: Optional[ClientResponse] = None
+    carrier: Optional[OrganizationResponse] = None
+    contacts: List[ProjectContactDetail] = []
+    estimates: List[EstimateResponse] = []
+    payments: List[PaymentResponse] = []
+
+    class Config:
+        extra = "allow"
