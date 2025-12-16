@@ -1,0 +1,173 @@
+"""
+Apex Assistant - Database Schema
+
+Defines all SQLite tables for tracking activity, metrics, and automation opportunities.
+"""
+
+import sqlite3
+from pathlib import Path
+from typing import Optional
+
+# Default database path (in project root)
+DEFAULT_DB_PATH = Path(__file__).parent.parent / "apex_assistant.db"
+
+
+def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
+    """Get a database connection with row factory enabled."""
+    path = db_path or DEFAULT_DB_PATH
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row  # Enable dict-like access to rows
+    return conn
+
+
+def init_database(db_path: Optional[Path] = None) -> None:
+    """Initialize the database with all required tables."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    # =========================================================================
+    # TASKS TABLE
+    # Record of every task requested from the orchestrator agent
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            description TEXT NOT NULL,
+            status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed')),
+            outcome TEXT,
+            category TEXT CHECK (category IN (
+                'estimates', 'line_items', 'adjuster_comms', 'documentation',
+                'admin', 'research', 'scheduling', 'financial', 'other'
+            )),
+            agent_used TEXT,
+
+            -- Metrics columns
+            complexity_score INTEGER CHECK (complexity_score BETWEEN 1 AND 5),
+            steps_required INTEGER,
+            decision_points INTEGER,
+            context_needed TEXT CHECK (context_needed IN ('low', 'medium', 'high')),
+            reusability TEXT CHECK (reusability IN ('low', 'medium', 'high')),
+            input_type TEXT CHECK (input_type IN ('text', 'file', 'image', 'structured_data', 'multiple')),
+            output_type TEXT,
+            tools_used TEXT,  -- JSON array of tool names
+            human_corrections INTEGER DEFAULT 0,
+            follow_up_tasks INTEGER DEFAULT 0,
+            time_to_complete INTEGER,  -- Seconds
+            quality_rating INTEGER CHECK (quality_rating BETWEEN 1 AND 5),
+            frequency_tag TEXT,  -- For pattern matching
+
+            -- Conversation link
+            conversation_id INTEGER,
+            FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+    """)
+
+    # =========================================================================
+    # CONVERSATIONS TABLE
+    # Chat sessions for context tracking
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            summary TEXT,
+            related_task_ids TEXT,  -- JSON array of task IDs
+            session_id TEXT,  -- Claude SDK session ID for resuming
+            is_active INTEGER DEFAULT 1
+        )
+    """)
+
+    # =========================================================================
+    # AGENTS TABLE
+    # Registry of specialized agents
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS agents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            capabilities TEXT,  -- JSON array of capabilities
+            times_used INTEGER DEFAULT 0,
+            created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_used DATETIME,
+            is_active INTEGER DEFAULT 1
+        )
+    """)
+
+    # =========================================================================
+    # AUTOMATION_CANDIDATES TABLE
+    # Patterns identified for potential automation
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS automation_candidates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pattern_description TEXT NOT NULL,
+            frequency INTEGER DEFAULT 1,
+            suggested_automation TEXT,
+            automation_type TEXT CHECK (automation_type IN ('skill', 'sub-agent', 'combo')),
+            status TEXT DEFAULT 'identified' CHECK (status IN (
+                'identified', 'in_review', 'implemented', 'dismissed'
+            )),
+            created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            related_task_ids TEXT,  -- JSON array of task IDs that match this pattern
+            notes TEXT
+        )
+    """)
+
+    # =========================================================================
+    # FILES_PROCESSED TABLE
+    # Record of documents and images handled
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS files_processed (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            file_type TEXT,  -- PDF, image, document type, etc.
+            file_path TEXT,
+            task_id INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            purpose TEXT,
+            file_size INTEGER,
+            FOREIGN KEY (task_id) REFERENCES tasks(id)
+        )
+    """)
+
+    # =========================================================================
+    # MCP_CONNECTIONS TABLE
+    # Configured MCP server connections
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mcp_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            server_type TEXT NOT NULL,  -- stdio, sse, http, sdk
+            config TEXT NOT NULL,  -- JSON configuration
+            status TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive', 'error')),
+            last_used DATETIME,
+            created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            error_message TEXT
+        )
+    """)
+
+    # =========================================================================
+    # CREATE INDEXES FOR COMMON QUERIES
+    # =========================================================================
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_timestamp ON tasks(timestamp)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_active ON conversations(is_active)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_agents_name ON agents(name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_automation_status ON automation_candidates(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_files_task ON files_processed(task_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_status ON mcp_connections(status)")
+
+    conn.commit()
+    conn.close()
+
+    print(f"Database initialized at: {db_path or DEFAULT_DB_PATH}")
+
+
+if __name__ == "__main__":
+    # Allow running directly to initialize the database
+    init_database()

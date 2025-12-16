@@ -1,0 +1,18 @@
+# Apex Assistant - Dependencies
+# Python 3.10+ required
+
+# Claude Agent SDK (latest)
+claude-agent-sdk>=0.1.17
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Async support (included with SDK but explicit for clarity)
+anyio>=4.0.0
+
+# API Server (for web UI)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+websockets>=12.0
+pydantic>=2.5.0
