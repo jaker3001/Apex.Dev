@@ -30,7 +30,7 @@ export interface Project {
   deductible?: number;
   client_id?: number;
   insurance_org_id?: number;
-  notes?: string;
+  notes_text?: string;
   created_at?: string;
   updated_at?: string;
   // From view
