@@ -20,12 +20,12 @@ from database import create_message, log_activity
 
 router = APIRouter()
 
-# Model ID to display name mapping
+# Model ID to display name mapping (SDK model names)
 MODEL_DISPLAY_NAMES = {
-    "claude-sonnet-4-20250514": "Sonnet 4",
-    "claude-opus-4-20250514": "Opus 4",
-    "claude-3-5-sonnet-20241022": "Sonnet 3.5",
-    "claude-3-5-haiku-20241022": "Haiku 3.5",
+    "claude-sonnet-4-5": "Sonnet 4.5",
+    "claude-opus-4-5": "Opus 4.5",
+    "claude-sonnet-4-0": "Sonnet 4",
+    "claude-haiku-4-5": "Haiku 4.5",
 }
 
 
@@ -49,8 +49,20 @@ class ConnectionManager:
         # Create a new chat service for this session
         if session_id not in self.chat_services:
             service = ChatService()
-            await service.start_session()
-            self.chat_services[session_id] = service
+            try:
+                await service.start_session()
+                self.chat_services[session_id] = service
+            except Exception as e:
+                print(f"ERROR: Failed to start session for {session_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Send error to client and close
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Failed to start chat session: {str(e)}"
+                })
+                await websocket.close()
+                raise
 
     def disconnect(self, session_id: str):
         """Remove a WebSocket connection."""
@@ -111,7 +123,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
         })
 
         # Track current model and previous model for switch detection
-        current_model = "claude-sonnet-4-5-20250514"  # Default model
+        current_model = "claude-sonnet-4-5"  # Default model (SDK naming)
         previous_model = None
 
         while True:

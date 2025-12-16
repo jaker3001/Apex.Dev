@@ -14,10 +14,10 @@ interface ChatHeaderProps {
 }
 
 const MODELS = [
-  { id: 'claude-sonnet-4-5-20250514', name: 'Sonnet 4.5', description: 'Fast, smart & balanced', cost: '$$', recommended: true },
-  { id: 'claude-opus-4-5-20251101', name: 'Opus 4.5', description: 'Most intelligent', cost: '$$$', recommended: false },
-  { id: 'claude-sonnet-4-20250514', name: 'Sonnet 4', description: 'Fast & capable', cost: '$', recommended: false },
-  { id: 'claude-haiku-3-5-20241022', name: 'Haiku 3.5', description: 'Quick & cheap', cost: '$', recommended: false },
+  { id: 'claude-sonnet-4-5', name: 'Sonnet 4.5', description: 'Fast, smart & balanced', cost: '$$', recommended: true },
+  { id: 'claude-opus-4-5', name: 'Opus 4.5', description: 'Most intelligent', cost: '$$$', recommended: false },
+  { id: 'claude-sonnet-4-0', name: 'Sonnet 4', description: 'Fast & capable', cost: '$$', recommended: false },
+  { id: 'claude-haiku-4-5', name: 'Haiku 4.5', description: 'Quick & cheap', cost: '$', recommended: false },
 ];
 
 export function ChatHeader({

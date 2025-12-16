@@ -9,10 +9,18 @@ Usage:
     uvicorn api.main:app --reload     # Development mode with auto-reload
 """
 
+import asyncio
+import sys
+
+# Fix for Windows subprocess support in asyncio
+# The Claude Agent SDK uses subprocess to spawn Claude Code CLI,
+# which requires ProactorEventLoop on Windows
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import sys
 from pathlib import Path
 
 # Add parent directory to path for imports

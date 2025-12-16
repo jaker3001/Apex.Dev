@@ -68,7 +68,7 @@ export function useChat(options: UseChatOptions = {}) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [currentModel, setCurrentModel] = useState<string>('claude-sonnet-4-20250514');
+  const [currentModel, setCurrentModel] = useState<string>('claude-sonnet-4-5');
 
   const wsRef = useRef<WebSocket | null>(null);
   const currentMessageRef = useRef<ChatMessage | null>(null);

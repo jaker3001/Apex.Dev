@@ -24,12 +24,12 @@ from api.schemas.chat import ConversationResponse, ConversationListResponse
 
 router = APIRouter()
 
-# Model ID to display name mapping
+# Model ID to display name mapping (SDK model names)
 MODEL_DISPLAY_NAMES = {
-    "claude-sonnet-4-20250514": "Sonnet 4",
-    "claude-opus-4-20250514": "Opus 4",
-    "claude-3-5-sonnet-20241022": "Sonnet 3.5",
-    "claude-3-5-haiku-20241022": "Haiku 3.5",
+    "claude-sonnet-4-5": "Sonnet 4.5",
+    "claude-opus-4-5": "Opus 4.5",
+    "claude-sonnet-4-0": "Sonnet 4",
+    "claude-haiku-4-5": "Haiku 4.5",
 }
 
 

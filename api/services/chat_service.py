@@ -95,6 +95,10 @@ class ChatService:
 
     async def start_session(self) -> None:
         """Start a new chat session."""
+        import asyncio
+        loop = asyncio.get_running_loop()
+        print(f"DEBUG: Event loop type during start_session: {type(loop)}")
+
         options = self._build_options()
         self.client = ClaudeSDKClient(options=options)
         await self.client.connect()
