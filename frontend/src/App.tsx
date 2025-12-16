@@ -8,6 +8,8 @@ import { MCPPage } from './pages/MCPPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { LearnPage } from './pages/LearnPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +27,8 @@ function App() {
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<ChatPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="projects/:id" element={<ProjectDetailPage />} />
             <Route path="agents" element={<AgentsPage />} />
             <Route path="skills" element={<SkillsPage />} />
             <Route path="mcp" element={<MCPPage />} />

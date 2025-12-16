@@ -26,8 +26,8 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database import init_database
-from api.routes import chat, agents, skills, mcp, analytics, conversations
+from database import init_database, init_apex_ops_database
+from api.routes import chat, agents, skills, mcp, analytics, conversations, projects
 
 
 @asynccontextmanager
@@ -35,7 +35,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler - runs on startup and shutdown."""
     # Startup
     init_database()
-    print("Database initialized")
+    print("Assistant database initialized")
+    init_apex_ops_database()
+    print("Operations database initialized")
     yield
     # Shutdown
     print("Shutting down API server")
@@ -55,9 +57,17 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",      # Vite dev server
         "http://localhost:5174",      # Vite alternate port
+        "http://localhost:5175",      # Vite alternate port
+        "http://localhost:5176",      # Vite alternate port
+        "http://localhost:5177",      # Vite alternate port
+        "http://localhost:5178",      # Vite alternate port
         "http://localhost:3000",      # Alternative dev port
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
+        "http://127.0.0.1:5177",
+        "http://127.0.0.1:5178",
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
@@ -72,6 +82,7 @@ app.include_router(agents.router, prefix="/api", tags=["agents"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(analytics.router, prefix="/api", tags=["analytics"])
+app.include_router(projects.router, prefix="/api", tags=["projects"])
 
 
 @app.get("/")
