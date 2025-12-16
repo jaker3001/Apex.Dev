@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'apex_auth_token';
 const EMAIL_KEY = 'apex_auth_email';
 
