@@ -16,7 +16,13 @@ import {
   Globe,
   Radio,
   AlertCircle,
+  Minus,
 } from 'lucide-react';
+
+interface KeyValuePair {
+  key: string;
+  value: string;
+}
 
 interface MCPServer {
   id: string;
@@ -98,6 +104,26 @@ export function MCPPage() {
     args: '',
     url: '',
   });
+  const [envVars, setEnvVars] = useState<KeyValuePair[]>([]);
+  const [headers, setHeaders] = useState<KeyValuePair[]>([]);
+
+  const addEnvVar = () => setEnvVars([...envVars, { key: '', value: '' }]);
+  const removeEnvVar = (index: number) => setEnvVars(envVars.filter((_, i) => i !== index));
+  const updateEnvVar = (index: number, field: 'key' | 'value', value: string) => {
+    setEnvVars(envVars.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const addHeader = () => setHeaders([...headers, { key: '', value: '' }]);
+  const removeHeader = (index: number) => setHeaders(headers.filter((_, i) => i !== index));
+  const updateHeader = (index: number, field: 'key' | 'value', value: string) => {
+    setHeaders(headers.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const resetForm = () => {
+    setNewServer({ name: '', type: 'stdio', command: '', args: '', url: '' });
+    setEnvVars([]);
+    setHeaders([]);
+  };
 
   // Fetch servers from backend
   const fetchServers = useCallback(async () => {
@@ -214,6 +240,16 @@ export function MCPPage() {
 
   const handleAddServer = async () => {
     try {
+      // Convert envVars array to object (filter out empty keys)
+      const envObject = envVars
+        .filter(({ key }) => key.trim() !== '')
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+
+      // Convert headers array to object (filter out empty keys)
+      const headersObject = headers
+        .filter(({ key }) => key.trim() !== '')
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+
       const response = await fetch(`${API_BASE}/mcp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,7 +258,9 @@ export function MCPPage() {
           server_type: newServer.type,
           command: newServer.type === 'stdio' ? newServer.command : undefined,
           args: newServer.type === 'stdio' ? newServer.args.split(' ').filter(Boolean) : undefined,
+          env: newServer.type === 'stdio' && Object.keys(envObject).length > 0 ? envObject : undefined,
           url: newServer.type !== 'stdio' ? newServer.url : undefined,
+          headers: newServer.type !== 'stdio' && Object.keys(headersObject).length > 0 ? headersObject : undefined,
         }),
       });
 
@@ -233,7 +271,7 @@ export function MCPPage() {
       // Refresh the list
       await fetchServers();
       setShowAddDialog(false);
-      setNewServer({ name: '', type: 'stdio', command: '', args: '', url: '' });
+      resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add server');
     }
@@ -436,7 +474,7 @@ export function MCPPage() {
           <div className="bg-background rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="font-semibold">Add MCP Server</h2>
-              <Button variant="ghost" size="icon" onClick={() => setShowAddDialog(false)}>
+              <Button variant="ghost" size="icon" onClick={() => { setShowAddDialog(false); resetForm(); }}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -495,23 +533,97 @@ export function MCPPage() {
                       className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
                     />
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Environment Variables</label>
+                      <Button type="button" variant="ghost" size="sm" onClick={addEnvVar}>
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    {envVars.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No environment variables. Click Add to include API keys or secrets.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {envVars.map((envVar, index) => (
+                          <div key={index} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={envVar.key}
+                              onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
+                              placeholder="KEY"
+                              className="flex-1 px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={envVar.value}
+                              onChange={(e) => updateEnvVar(index, 'value', e.target.value)}
+                              placeholder="value"
+                              className="flex-1 px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeEnvVar(index)}>
+                              <Minus className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
-                <div>
-                  <label className="block text-sm font-medium mb-2">URL</label>
-                  <input
-                    type="text"
-                    value={newServer.url}
-                    onChange={(e) => setNewServer({ ...newServer, url: e.target.value })}
-                    placeholder="https://api.example.com"
-                    className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">URL</label>
+                    <input
+                      type="text"
+                      value={newServer.url}
+                      onChange={(e) => setNewServer({ ...newServer, url: e.target.value })}
+                      placeholder="https://api.example.com"
+                      className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium">Headers</label>
+                      <Button type="button" variant="ghost" size="sm" onClick={addHeader}>
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    {headers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No headers. Click Add to include Authorization or custom headers.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {headers.map((header, index) => (
+                          <div key={index} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={header.key}
+                              onChange={(e) => updateHeader(index, 'key', e.target.value)}
+                              placeholder="Header-Name"
+                              className="flex-1 px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={header.value}
+                              onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                              placeholder="value"
+                              className="flex-1 px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeHeader(index)}>
+                              <Minus className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
             <div className="flex justify-end gap-2 p-4 border-t bg-muted/30">
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              <Button variant="outline" onClick={() => { setShowAddDialog(false); resetForm(); }}>
                 Cancel
               </Button>
               <Button
