@@ -64,10 +64,11 @@ export function ProjectsSidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const { projects = [], isLoading } = useProjects();
+  const { data, isLoading } = useProjects();
+  const projects = data?.projects ?? [];
 
   // Filter projects
-  const filteredProjects = (projects || []).filter((project) => {
+  const filteredProjects = projects.filter((project: Project) => {
     // Status filter
     if (statusFilter !== 'all' && project.status !== statusFilter) {
       return false;
@@ -148,7 +149,7 @@ export function ProjectsSidebar() {
           ) : filteredProjects.length === 0 ? (
             <p className="px-2 text-xs text-muted-foreground">No projects found</p>
           ) : (
-            filteredProjects.slice(0, 20).map((project) => (
+            filteredProjects.slice(0, 20).map((project: Project) => (
               <ProjectItem
                 key={project.id}
                 project={project}

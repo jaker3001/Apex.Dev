@@ -1,5 +1,6 @@
 import { User, Bot, Zap } from 'lucide-react';
 import { ToolUsage } from './ToolUsage';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import type { ChatMessage } from '@/hooks/useChat';
 
 interface MessageBubbleProps {
@@ -28,16 +29,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       <div className={`flex-1 max-w-[80%] ${isUser ? 'text-right' : ''}`}>
         {/* Message content */}
         <div
-          className={`inline-block p-4 rounded-2xl ${
+          className={`inline-block p-4 rounded-2xl text-left ${
             isUser
               ? 'bg-primary text-primary-foreground rounded-tr-sm'
               : 'bg-muted rounded-tl-sm'
           }`}
         >
           {message.content ? (
-            <div className="whitespace-pre-wrap break-words">
-              {message.content}
-            </div>
+            <MarkdownRenderer content={message.content} />
           ) : message.isStreaming ? (
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
