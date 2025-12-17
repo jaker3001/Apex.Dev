@@ -7,6 +7,7 @@ import {
   DocumentsTab,
   TasksTab,
   NotesTab,
+  ExpensesTab,
 } from '@/components/projects/tabs';
 import {
   EditJobModal,
@@ -36,6 +37,7 @@ import {
   CheckSquare,
   MessageSquare,
   User,
+  Receipt as ReceiptIcon,
 } from 'lucide-react';
 import {
   useProject,
@@ -45,6 +47,9 @@ import {
   useToggleReadyToInvoice,
   type ProjectContact,
   type Estimate,
+  type LaborEntry,
+  type Receipt,
+  type WorkOrder,
 } from '@/hooks/useProjects';
 import { useState } from 'react';
 
@@ -128,8 +133,11 @@ export function ProjectDetailPage() {
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showLaborModal, setShowLaborModal] = useState(false);
+  const [editingLabor, setEditingLabor] = useState<LaborEntry | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [showWorkOrderModal, setShowWorkOrderModal] = useState(false);
+  const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
 
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: projectId, status: newStatus });
@@ -309,6 +317,10 @@ export function ProjectDetailPage() {
                       <MessageSquare className="h-4 w-4" />
                       Notes
                     </TabsTrigger>
+                    <TabsTrigger value="expenses" className="gap-1.5">
+                      <ReceiptIcon className="h-4 w-4" />
+                      Expenses
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -329,6 +341,38 @@ export function ProjectDetailPage() {
                     notes={project.notes || []}
                     onAddNote={handleAddNote}
                     isAddingNote={createNote.isPending}
+                  />
+                </TabsContent>
+
+                <TabsContent value="expenses" className="m-0">
+                  <ExpensesTab
+                    laborEntries={project.labor_entries || []}
+                    receipts={project.receipts || []}
+                    workOrders={project.work_orders || []}
+                    onAddLabor={() => {
+                      setEditingLabor(null);
+                      setShowLaborModal(true);
+                    }}
+                    onEditLabor={(entry) => {
+                      setEditingLabor(entry);
+                      setShowLaborModal(true);
+                    }}
+                    onAddReceipt={() => {
+                      setEditingReceipt(null);
+                      setShowReceiptModal(true);
+                    }}
+                    onEditReceipt={(receipt) => {
+                      setEditingReceipt(receipt);
+                      setShowReceiptModal(true);
+                    }}
+                    onAddWorkOrder={() => {
+                      setEditingWorkOrder(null);
+                      setShowWorkOrderModal(true);
+                    }}
+                    onEditWorkOrder={(workOrder) => {
+                      setEditingWorkOrder(workOrder);
+                      setShowWorkOrderModal(true);
+                    }}
                   />
                 </TabsContent>
               </Tabs>
@@ -432,21 +476,33 @@ export function ProjectDetailPage() {
       {showLaborModal && (
         <LaborEntryModal
           projectId={projectId}
-          onClose={() => setShowLaborModal(false)}
+          entry={editingLabor || undefined}
+          onClose={() => {
+            setShowLaborModal(false);
+            setEditingLabor(null);
+          }}
         />
       )}
 
       {showReceiptModal && (
         <ReceiptModal
           projectId={projectId}
-          onClose={() => setShowReceiptModal(false)}
+          receipt={editingReceipt || undefined}
+          onClose={() => {
+            setShowReceiptModal(false);
+            setEditingReceipt(null);
+          }}
         />
       )}
 
       {showWorkOrderModal && (
         <WorkOrderModal
           projectId={projectId}
-          onClose={() => setShowWorkOrderModal(false)}
+          workOrder={editingWorkOrder || undefined}
+          onClose={() => {
+            setShowWorkOrderModal(false);
+            setEditingWorkOrder(null);
+          }}
         />
       )}
     </div>

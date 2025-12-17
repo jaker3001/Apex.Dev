@@ -322,6 +322,7 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
             status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'approved', 'in_progress', 'completed', 'cancelled')),
             approved_by INTEGER,
             approved_date TEXT,
+            document_file_path TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT,
             FOREIGN KEY (project_id) REFERENCES projects(id),
@@ -540,6 +541,17 @@ def _run_ops_migrations(cursor: sqlite3.Cursor) -> None:
     if "ready_to_invoice" not in existing_columns:
         cursor.execute("ALTER TABLE projects ADD COLUMN ready_to_invoice INTEGER DEFAULT 0")
         print("Migration: Added 'ready_to_invoice' column to projects")
+
+    # =========================================================================
+    # WORK ORDERS MIGRATIONS
+    # =========================================================================
+    cursor.execute("PRAGMA table_info(work_orders)")
+    wo_columns = {row[1] for row in cursor.fetchall()}
+
+    # Add document_file_path column if missing
+    if "document_file_path" not in wo_columns:
+        cursor.execute("ALTER TABLE work_orders ADD COLUMN document_file_path TEXT")
+        print("Migration: Added 'document_file_path' column to work_orders")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { BaseModal } from './BaseModal';
-import { useCreateLaborEntry } from '@/hooks/useProjects';
+import { useCreateLaborEntry, useUpdateLaborEntry, useDeleteLaborEntry, type LaborEntry } from '@/hooks/useProjects';
+import { Trash2 } from 'lucide-react';
 
 interface LaborEntryModalProps {
   projectId: number;
   onClose: () => void;
+  entry?: LaborEntry; // If provided, modal is in edit mode
 }
 
 const WORK_CATEGORIES = [
@@ -19,16 +21,21 @@ const WORK_CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
-export function LaborEntryModal({ projectId, onClose }: LaborEntryModalProps) {
+export function LaborEntryModal({ projectId, onClose, entry }: LaborEntryModalProps) {
   const createLaborEntry = useCreateLaborEntry();
+  const updateLaborEntry = useUpdateLaborEntry();
+  const deleteLaborEntry = useDeleteLaborEntry();
+
+  const isEditMode = !!entry;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
-    work_date: new Date().toISOString().split('T')[0],
-    hours: '',
-    hourly_rate: '',
-    work_category: '',
-    description: '',
-    billable: true,
+    work_date: entry?.work_date || new Date().toISOString().split('T')[0],
+    hours: entry?.hours?.toString() || '',
+    hourly_rate: entry?.hourly_rate?.toString() || '',
+    work_category: entry?.work_category || '',
+    description: entry?.description || '',
+    billable: entry?.billable ?? true,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -44,30 +51,56 @@ export function LaborEntryModal({ projectId, onClose }: LaborEntryModalProps) {
 
     if (!formData.hours || !formData.work_date) return;
 
+    const data = {
+      work_date: formData.work_date,
+      hours: parseFloat(formData.hours),
+      hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
+      work_category: formData.work_category || undefined,
+      description: formData.description || undefined,
+      billable: formData.billable,
+    };
+
     try {
-      await createLaborEntry.mutateAsync({
+      if (isEditMode && entry) {
+        await updateLaborEntry.mutateAsync({
+          projectId,
+          laborId: entry.id,
+          data,
+        });
+      } else {
+        await createLaborEntry.mutateAsync({
+          projectId,
+          data,
+        });
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to save labor entry:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!entry) return;
+    try {
+      await deleteLaborEntry.mutateAsync({
         projectId,
-        data: {
-          work_date: formData.work_date,
-          hours: parseFloat(formData.hours),
-          hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
-          work_category: formData.work_category || undefined,
-          description: formData.description || undefined,
-          billable: formData.billable,
-        },
+        laborId: entry.id,
       });
       onClose();
     } catch (error) {
-      console.error('Failed to create labor entry:', error);
+      console.error('Failed to delete labor entry:', error);
     }
   };
+
+  const isSaving = createLaborEntry.isPending || updateLaborEntry.isPending;
+  const isDeleting = deleteLaborEntry.isPending;
 
   const totalCost = formData.hours && formData.hourly_rate
     ? (parseFloat(formData.hours) * parseFloat(formData.hourly_rate)).toFixed(2)
     : '0.00';
 
   return (
-    <BaseModal title="Log Labor Hours" onClose={onClose} maxWidth="max-w-md">
+    <BaseModal title={isEditMode ? "Edit Labor Entry" : "Log Labor Hours"} onClose={onClose} maxWidth="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -168,13 +201,50 @@ export function LaborEntryModal({ projectId, onClose }: LaborEntryModalProps) {
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={createLaborEntry.isPending || !formData.hours}>
-            {createLaborEntry.isPending ? 'Saving...' : 'Log Hours'}
-          </Button>
+        <div className="flex justify-between pt-4 border-t">
+          <div>
+            {isEditMode && !showDeleteConfirm && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            )}
+            {showDeleteConfirm && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-destructive">Delete this entry?</span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Yes'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  No
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving || !formData.hours}>
+              {isSaving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Log Hours'}
+            </Button>
+          </div>
         </div>
       </form>
     </BaseModal>

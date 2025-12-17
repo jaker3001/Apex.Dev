@@ -767,6 +767,7 @@ class WorkOrderCreate(BaseModel):
     status: WorkOrderStatus = "draft"
     approved_by: Optional[int] = None
     approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
 
 
 class WorkOrderUpdate(BaseModel):
@@ -778,6 +779,7 @@ class WorkOrderUpdate(BaseModel):
     status: Optional[WorkOrderStatus] = None
     approved_by: Optional[int] = None
     approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
 
 
 class WorkOrderResponse(BaseModel):
@@ -791,6 +793,7 @@ class WorkOrderResponse(BaseModel):
     status: str = "draft"
     approved_by: Optional[int] = None
     approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     # Computed/joined fields

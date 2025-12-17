@@ -1185,8 +1185,7 @@ async def create_project_work_order(project_id: int, work_order: WorkOrderCreate
         description=work_order.description,
         budget_amount=work_order.budget_amount,
         status=work_order.status,
-        approved_by=work_order.approved_by,
-        approved_date=work_order.approved_date,
+        document_file_path=work_order.document_file_path,
     )
 
     work_orders = get_work_orders_for_project(project_id)
@@ -1233,6 +1232,62 @@ async def remove_project_work_order(project_id: int, work_order_id: int):
         raise HTTPException(status_code=404, detail="Work order not found")
 
     return {"message": "Work order deleted successfully"}
+
+
+# Upload directory for work orders
+WORKORDERS_UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads" / "workorders"
+WORKORDERS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/projects/{project_id}/work-orders/upload")
+async def upload_work_order_file(
+    project_id: int,
+    file: UploadFile = File(...),
+):
+    """
+    Upload a work order document file (image or PDF).
+
+    Returns the file path that should be stored with the work order record.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate file type
+    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    # Create project-specific directory
+    project_dir = WORKORDERS_UPLOAD_DIR / str(project_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    original_name = Path(file.filename or "workorder").stem
+    stored_filename = f"{file_id}_{original_name}{file_ext}"
+    file_path = project_dir / stored_filename
+
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Return relative path for storage in database
+    relative_path = f"workorders/{project_id}/{stored_filename}"
+
+    return {
+        "file_path": relative_path,
+        "file_name": file.filename,
+        "file_size": len(content),
+    }
 
 
 # =============================================================================

@@ -1375,6 +1375,7 @@ def create_work_order(
     description: Optional[str] = None,
     budget_amount: Optional[float] = None,
     status: str = "draft",
+    document_file_path: Optional[str] = None,
 ) -> int:
     """Create a new work order for a project."""
     conn = get_ops_connection()
@@ -1382,11 +1383,11 @@ def create_work_order(
     cursor.execute(
         """
         INSERT INTO work_orders (
-            project_id, work_order_number, title, description, budget_amount, status
+            project_id, work_order_number, title, description, budget_amount, status, document_file_path
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (project_id, work_order_number, title, description, budget_amount, status)
+        (project_id, work_order_number, title, description, budget_amount, status, document_file_path)
     )
     wo_id = cursor.lastrowid
     conn.commit()

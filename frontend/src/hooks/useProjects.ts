@@ -203,6 +203,7 @@ export interface WorkOrder {
   status: WorkOrderStatus | string;
   approved_by?: number;
   approved_date?: string;
+  document_file_path?: string;
   created_at?: string;
   updated_at?: string;
   // Computed
@@ -941,6 +942,31 @@ async function deleteWorkOrder(projectId: number, workOrderId: number): Promise<
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete work order');
+}
+
+async function uploadWorkOrderFile(
+  projectId: number,
+  file: File
+): Promise<{ file_path: string; file_name: string; file_size: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE}/projects/${projectId}/work-orders/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to upload work order file');
+  }
+  return res.json();
+}
+
+export function useUploadWorkOrderFile() {
+  return useMutation({
+    mutationFn: ({ projectId, file }: { projectId: number; file: File }) =>
+      uploadWorkOrderFile(projectId, file),
+  });
 }
 
 export function useCreateWorkOrder() {
