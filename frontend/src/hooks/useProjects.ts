@@ -33,7 +33,7 @@ export interface Project {
   notes_text?: string;
   created_at?: string;
   updated_at?: string;
-  // From view
+  // From view (or auto-created on project creation)
   client_name?: string;
   client_phone?: string;
   client_email?: string;
@@ -109,6 +109,7 @@ export interface Estimate {
   version: number;
   estimate_type?: string;
   amount?: number;
+  original_amount?: number;  // The initial submission amount for reduction tracking
   status: string;
   submitted_date?: string;
   approved_date?: string;
@@ -132,6 +133,19 @@ export interface Payment {
   created_at?: string;
 }
 
+export interface Media {
+  id: number;
+  project_id: number;
+  file_name: string;
+  file_path: string;
+  file_type?: string;
+  file_size?: number;
+  caption?: string;
+  uploaded_by?: number;
+  uploaded_at?: string;
+  uploaded_by_name?: string;
+}
+
 export interface ProjectFull extends Project {
   client?: Client;
   carrier?: Organization;
@@ -139,6 +153,7 @@ export interface ProjectFull extends Project {
   notes: Note[];
   estimates: Estimate[];
   payments: Payment[];
+  media: Media[];
 }
 
 export interface ProjectStats {
@@ -283,6 +298,266 @@ export function useCreateNote() {
     onSuccess: (_, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
     },
+  });
+}
+
+// =============================================================================
+// ESTIMATE HOOKS
+// =============================================================================
+
+async function uploadEstimateFile(
+  projectId: number,
+  file: File
+): Promise<{ file_path: string; file_name: string; file_size: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE}/projects/${projectId}/estimates/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to upload file');
+  }
+  return res.json();
+}
+
+export function useUploadEstimateFile() {
+  return useMutation({
+    mutationFn: ({ projectId, file }: { projectId: number; file: File }) =>
+      uploadEstimateFile(projectId, file),
+  });
+}
+
+async function createEstimate(
+  projectId: number,
+  data: {
+    version?: number;
+    amount?: number;
+    estimate_type?: string;
+    status?: string;
+    submitted_date?: string;
+    approved_date?: string;
+    notes?: string;
+  }
+): Promise<Estimate> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/estimates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create estimate');
+  return res.json();
+}
+
+export function useCreateEstimate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Partial<Estimate> }) =>
+      createEstimate(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+async function updateEstimate(
+  projectId: number,
+  estimateId: number,
+  data: Partial<Estimate>
+): Promise<Estimate> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/estimates/${estimateId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update estimate');
+  return res.json();
+}
+
+export function useUpdateEstimate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, estimateId, data }: { projectId: number; estimateId: number; data: Partial<Estimate> }) =>
+      updateEstimate(projectId, estimateId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// PAYMENT HOOKS
+// =============================================================================
+
+async function createPayment(
+  projectId: number,
+  data: {
+    amount: number;
+    payment_method?: string;
+    payment_type?: string;
+    check_number?: string;
+    received_date?: string;
+    deposited_date?: string;
+    invoice_number?: string;
+    estimate_id?: number;
+    notes?: string;
+  }
+): Promise<Payment> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create payment');
+  return res.json();
+}
+
+export function useCreatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Partial<Payment> }) =>
+      createPayment(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// PROJECT CONTACT HOOKS
+// =============================================================================
+
+async function assignContact(
+  projectId: number,
+  contactId: number,
+  roleOnProject?: string
+): Promise<ProjectContact> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/contacts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contact_id: contactId, role_on_project: roleOnProject }),
+  });
+  if (!res.ok) throw new Error('Failed to assign contact');
+  return res.json();
+}
+
+async function removeContact(projectId: number, contactId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/contacts/${contactId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove contact');
+}
+
+export function useAssignContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, contactId, roleOnProject }: { projectId: number; contactId: number; roleOnProject?: string }) =>
+      assignContact(projectId, contactId, roleOnProject),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+export function useRemoveContact() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, contactId }: { projectId: number; contactId: number }) =>
+      removeContact(projectId, contactId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// MEDIA HOOKS
+// =============================================================================
+
+async function createMedia(
+  projectId: number,
+  data: {
+    file_name: string;
+    file_path: string;
+    file_type?: string;
+    file_size?: number;
+    caption?: string;
+    uploaded_by?: number;
+  }
+): Promise<Media> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project_id: projectId, ...data }),
+  });
+  if (!res.ok) throw new Error('Failed to create media');
+  return res.json();
+}
+
+async function deleteMedia(projectId: number, mediaId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/media/${mediaId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete media');
+}
+
+export function useCreateMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      data,
+    }: {
+      projectId: number;
+      data: {
+        file_name: string;
+        file_path: string;
+        file_type?: string;
+        file_size?: number;
+        caption?: string;
+      };
+    }) => createMedia(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+export function useDeleteMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, mediaId }: { projectId: number; mediaId: number }) =>
+      deleteMedia(projectId, mediaId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// JOB NUMBER GENERATION
+// =============================================================================
+
+export interface GeneratedJobNumber {
+  job_number: string;
+  job_type: string;
+  acronym: string;
+}
+
+async function generateJobNumber(jobType: string): Promise<GeneratedJobNumber> {
+  const res = await fetch(`${API_BASE}/projects/next-job-number?job_type=${encodeURIComponent(jobType)}`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to generate job number');
+  }
+  return res.json();
+}
+
+export function useGenerateJobNumber() {
+  return useMutation({
+    mutationFn: (jobType: string) => generateJobNumber(jobType),
   });
 }
 

@@ -224,6 +224,10 @@ class ProjectCreate(BaseModel):
     client_id: Optional[int] = None
     insurance_org_id: Optional[int] = None
     notes: Optional[str] = None
+    # Client info - if provided without client_id, auto-create client
+    client_name: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_email: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -353,15 +357,16 @@ class NoteListResponse(BaseModel):
 # ESTIMATE SCHEMAS
 # =============================================================================
 
-EstimateStatus = Literal["draft", "submitted", "approved", "revision_requested", "denied"]
+EstimateStatus = Literal["draft", "submitted", "approved", "revision_requested", "revision", "denied"]
 
 
 class EstimateCreate(BaseModel):
     """Schema for creating a new estimate."""
-    project_id: int
+    project_id: Optional[int] = None  # Optional because it comes from URL path
     version: int = 1
     estimate_type: Optional[str] = None
     amount: Optional[float] = None
+    original_amount: Optional[float] = None  # Tracks the initial submission amount
     status: EstimateStatus = "draft"
     submitted_date: Optional[str] = None
     approved_date: Optional[str] = None
@@ -374,6 +379,7 @@ class EstimateUpdate(BaseModel):
     version: Optional[int] = None
     estimate_type: Optional[str] = None
     amount: Optional[float] = None
+    original_amount: Optional[float] = None
     status: Optional[EstimateStatus] = None
     submitted_date: Optional[str] = None
     approved_date: Optional[str] = None
@@ -388,6 +394,7 @@ class EstimateResponse(BaseModel):
     version: int = 1
     estimate_type: Optional[str] = None
     amount: Optional[float] = None
+    original_amount: Optional[float] = None  # The initial submission amount for reduction tracking
     status: str = "draft"
     submitted_date: Optional[str] = None
     approved_date: Optional[str] = None
@@ -452,6 +459,50 @@ class PaymentResponse(BaseModel):
 class PaymentListResponse(BaseModel):
     """Response schema for listing payments."""
     payments: List[PaymentResponse]
+    total: int
+
+
+# =============================================================================
+# MEDIA SCHEMAS
+# =============================================================================
+
+class MediaCreate(BaseModel):
+    """Schema for creating a new media record."""
+    project_id: int
+    file_name: str
+    file_path: str
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    caption: Optional[str] = None
+    uploaded_by: Optional[int] = None
+
+
+class MediaUpdate(BaseModel):
+    """Schema for updating a media record (all fields optional)."""
+    file_name: Optional[str] = None
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None
+    caption: Optional[str] = None
+
+
+class MediaResponse(BaseModel):
+    """Response schema for a media record."""
+    id: int
+    project_id: int
+    file_name: str
+    file_path: str
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    caption: Optional[str] = None
+    uploaded_by: Optional[int] = None
+    uploaded_at: Optional[str] = None
+    # Computed/joined fields
+    uploaded_by_name: Optional[str] = None
+
+
+class MediaListResponse(BaseModel):
+    """Response schema for listing media."""
+    media: List[MediaResponse]
     total: int
 
 
@@ -568,6 +619,7 @@ class ProjectFullResponse(BaseModel):
     contacts: List[ProjectContactDetail] = []
     estimates: List[EstimateResponse] = []
     payments: List[PaymentResponse] = []
+    media: List[MediaResponse] = []
 
     class Config:
         extra = "allow"

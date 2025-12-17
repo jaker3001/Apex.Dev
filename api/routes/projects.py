@@ -6,8 +6,11 @@ This is the main router for the project management dashboard.
 """
 
 from typing import Optional
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 import sys
+import os
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -41,6 +44,14 @@ from database import (
     create_payment,
     get_payments_for_project,
     update_payment,
+    # Media operations
+    create_media,
+    get_media,
+    get_media_for_project,
+    update_media,
+    delete_media,
+    # Client operations
+    create_client,
 )
 
 from api.schemas.operations import (
@@ -70,9 +81,104 @@ from api.schemas.operations import (
     PaymentUpdate,
     PaymentResponse,
     PaymentListResponse,
+    # Media schemas
+    MediaCreate,
+    MediaUpdate,
+    MediaResponse,
+    MediaListResponse,
 )
 
 router = APIRouter()
+
+
+# =============================================================================
+# JOB NUMBER GENERATION
+# =============================================================================
+
+# Job type acronyms
+JOB_TYPE_ACRONYMS = {
+    'mitigation': 'MIT',
+    'reconstruction': 'RPR',
+    'remodel': 'RMD',
+    'abatement': 'ABT',
+    'remediation': 'REM',
+}
+
+
+@router.get("/projects/next-job-number")
+async def generate_job_number(job_type: str):
+    """
+    Generate the next available job number for a given job type.
+
+    Format: YYYYMM-###-TYPE
+    Example: 202512-001-MIT
+
+    The sequence number (###) is unique within a month across ALL job types.
+    This ensures no duplicate job numbers ever exist.
+    """
+    from datetime import datetime
+    from database import get_ops_connection
+
+    # Validate job type
+    job_type_lower = job_type.lower()
+    if job_type_lower not in JOB_TYPE_ACRONYMS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid job type. Must be one of: {', '.join(JOB_TYPE_ACRONYMS.keys())}"
+        )
+
+    acronym = JOB_TYPE_ACRONYMS[job_type_lower]
+
+    # Get current year-month prefix
+    now = datetime.now()
+    prefix = f"{now.year}{str(now.month).zfill(2)}"
+
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    # Find the highest existing sequence number for this month (across ALL types)
+    cursor.execute(
+        """
+        SELECT job_number FROM projects
+        WHERE job_number LIKE ?
+        """,
+        (f"{prefix}-%",)
+    )
+
+    existing = cursor.fetchall()
+
+    # Build a set of all existing job numbers for uniqueness check
+    existing_numbers = {row[0] for row in existing}
+
+    # Find the highest sequence number
+    max_seq = 0
+    for job_num in existing_numbers:
+        try:
+            # Extract the ### part from YYYYMM-###-TYPE
+            parts = job_num.split('-')
+            if len(parts) >= 2:
+                seq = int(parts[1])
+                max_seq = max(max_seq, seq)
+        except (ValueError, IndexError):
+            continue
+
+    # Generate next number, ensuring it doesn't exist
+    next_seq = max_seq + 1
+    job_number = f"{prefix}-{str(next_seq).zfill(3)}-{acronym}"
+
+    # Double-check uniqueness (handles edge cases)
+    while job_number in existing_numbers:
+        next_seq += 1
+        job_number = f"{prefix}-{str(next_seq).zfill(3)}-{acronym}"
+
+    conn.close()
+
+    return {
+        "job_number": job_number,
+        "job_type": job_type_lower,
+        "acronym": acronym,
+        "sequence": next_seq,
+    }
 
 
 # =============================================================================
@@ -140,7 +246,7 @@ async def get_project_detail(project_id: int):
     return result
 
 
-@router.get("/projects/by-job/{job_number}")
+@router.get("/projects/by-job/{job_number}", response_model=ProjectResponse)
 async def get_project_by_job(job_number: str):
     """
     Get a project by its job number.
@@ -159,8 +265,23 @@ async def create_new_project(project: ProjectCreate):
     Create a new project.
 
     Job number must be unique.
+    If client_name is provided without client_id, a new client will be created.
     """
     try:
+        # If client info is provided without client_id, create a client first
+        client_id = project.client_id
+        if project.client_name and not client_id:
+            client_id = create_client(
+                name=project.client_name,
+                phone=project.client_phone,
+                email=project.client_email,
+                # Use project address for client if provided
+                address=project.address,
+                city=project.city,
+                state=project.state,
+                zip_code=project.zip,
+            )
+
         project_id = create_project(
             job_number=project.job_number,
             status=project.status,
@@ -185,7 +306,7 @@ async def create_new_project(project: ProjectCreate):
             claim_number=project.claim_number,
             policy_number=project.policy_number,
             deductible=project.deductible,
-            client_id=project.client_id,
+            client_id=client_id,
             insurance_org_id=project.insurance_org_id,
             notes=project.notes,
         )
@@ -436,6 +557,7 @@ async def create_project_estimate(project_id: int, estimate: EstimateCreate):
         approved_date=estimate.approved_date,
         xactimate_file_path=estimate.xactimate_file_path,
         notes=estimate.notes,
+        original_amount=estimate.original_amount,
     )
 
     estimates = get_estimates_for_project(project_id)
@@ -493,6 +615,88 @@ async def change_estimate_status(
     update_estimate_status(estimate_id, status, approved_date)
 
     return {"message": f"Estimate status updated to '{status}'"}
+
+
+# Upload directory for estimate PDFs
+ESTIMATES_UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads" / "estimates"
+ESTIMATES_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/projects/{project_id}/estimates/upload")
+async def upload_estimate_file(
+    project_id: int,
+    file: UploadFile = File(...),
+):
+    """
+    Upload a PDF file for an estimate.
+
+    Returns the file path that should be stored with the estimate record.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Create project-specific directory
+    project_dir = ESTIMATES_UPLOAD_DIR / str(project_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    original_name = Path(file.filename).stem
+    stored_filename = f"{file_id}_{original_name}.pdf"
+    file_path = project_dir / stored_filename
+
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Return relative path for storage in database
+    relative_path = f"estimates/{project_id}/{stored_filename}"
+
+    return {
+        "file_path": relative_path,
+        "file_name": file.filename,
+        "file_size": len(content),
+    }
+
+
+@router.get("/files/{file_path:path}")
+async def serve_file(file_path: str):
+    """
+    Serve uploaded files (estimates, etc.)
+    """
+    # Base uploads directory
+    uploads_dir = Path(__file__).parent.parent.parent / "uploads"
+    full_path = uploads_dir / file_path
+
+    # Security: ensure path doesn't escape uploads directory
+    try:
+        full_path.resolve().relative_to(uploads_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determine media type
+    media_type = "application/pdf" if full_path.suffix.lower() == ".pdf" else None
+
+    # Set Content-Disposition to inline so browser displays instead of downloads
+    headers = {"Content-Disposition": f"inline; filename=\"{full_path.name}\""}
+
+    return FileResponse(
+        path=str(full_path),
+        media_type=media_type,
+        headers=headers
+    )
 
 
 # =============================================================================
@@ -565,3 +769,103 @@ async def update_project_payment(project_id: int, payment_id: int, payment: Paym
         raise HTTPException(status_code=404, detail="Payment not found")
 
     return updated_payment
+
+
+# =============================================================================
+# MEDIA ENDPOINTS
+# =============================================================================
+
+@router.get("/projects/{project_id}/media", response_model=MediaListResponse)
+async def list_project_media(
+    project_id: int,
+    file_type: Optional[str] = Query(default=None, description="Filter by file type"),
+):
+    """
+    Get all media files for a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    media = get_media_for_project(project_id, file_type=file_type)
+
+    return {
+        "media": media,
+        "total": len(media),
+    }
+
+
+@router.post("/projects/{project_id}/media", response_model=MediaResponse)
+async def create_project_media(project_id: int, media_item: MediaCreate):
+    """
+    Add a media file record to a project.
+
+    Note: This creates the database record. Actual file upload should be handled
+    separately (e.g., to cloud storage) with the file_path stored here.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    media_id = create_media(
+        project_id=project_id,
+        file_name=media_item.file_name,
+        file_path=media_item.file_path,
+        file_type=media_item.file_type,
+        file_size=media_item.file_size,
+        caption=media_item.caption,
+        uploaded_by=media_item.uploaded_by,
+    )
+
+    media = get_media_for_project(project_id)
+    created_media = next((m for m in media if m.get("id") == media_id), None)
+
+    return created_media or {
+        "id": media_id,
+        "project_id": project_id,
+        "file_name": media_item.file_name,
+        "file_path": media_item.file_path,
+    }
+
+
+@router.patch("/projects/{project_id}/media/{media_id}", response_model=MediaResponse)
+async def update_project_media(project_id: int, media_id: int, media_item: MediaUpdate):
+    """
+    Update a media record.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = media_item.model_dump(exclude_unset=True)
+
+    if update_data:
+        update_media(media_id, **update_data)
+
+    media = get_media_for_project(project_id)
+    updated_media = next((m for m in media if m.get("id") == media_id), None)
+
+    if not updated_media:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    return updated_media
+
+
+@router.delete("/projects/{project_id}/media/{media_id}")
+async def remove_project_media(project_id: int, media_id: int):
+    """
+    Delete a media record.
+
+    Note: This only removes the database record. The actual file should be
+    deleted separately from storage.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    deleted = delete_media(media_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    return {"message": "Media deleted successfully"}
