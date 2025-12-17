@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Pre-push hook for Apex Assistant
+# Provides safety checks before pushing to remote
+#
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Get the current branch
+CURRENT_BRANCH=$(git symbolic-ref HEAD 2>/dev/null | sed 's|refs/heads/||')
+
+# Protected branches that deserve extra attention
+PROTECTED_BRANCHES="master main"
+
+# Check if pushing to a protected branch
+for branch in $PROTECTED_BRANCHES; do
+    if [ "$CURRENT_BRANCH" = "$branch" ]; then
+        echo ""
+        echo -e "${YELLOW}You're pushing directly to ${branch}.${NC}"
+        echo ""
+        echo "This is fine for personal projects, but consider:"
+        echo "  - Using feature branches for new work"
+        echo "  - Creating pull requests for code review"
+        echo ""
+
+        # Show what's about to be pushed
+        echo -e "${YELLOW}Commits to be pushed:${NC}"
+        git log --oneline @{upstream}..HEAD 2>/dev/null || git log --oneline -5
+        echo ""
+
+        # In a team environment, you might want to block this:
+        # echo "Direct pushes to $branch are not allowed. Please use a pull request."
+        # exit 1
+
+        break
+    fi
+done
+
+# Check for WIP commits
+WIP_COMMITS=$(git log --oneline @{upstream}..HEAD 2>/dev/null | grep -iE "(wip|work in progress|fixup|squash)" || true)
+if [ -n "$WIP_COMMITS" ]; then
+    echo ""
+    echo -e "${YELLOW}Warning: You have WIP/fixup commits:${NC}"
+    echo "$WIP_COMMITS"
+    echo ""
+    echo "Consider squashing these before pushing."
+    echo ""
+fi
+
+exit 0

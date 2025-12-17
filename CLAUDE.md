@@ -28,6 +28,26 @@ python main.py
 python main.py --init-db
 ```
 
+## Git Hooks (New Machine Setup)
+
+This repo uses git hooks for quality checks. They're stored in `scripts/hooks/` so they're version-controlled.
+
+**On a fresh clone, run this once:**
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+**What the hooks do:**
+| Hook | Purpose |
+|------|---------|
+| `pre-commit` | Blocks commits with secrets, .env files; warns about large files |
+| `commit-msg` | Enforces conventional commit format (`feat:`, `fix:`, etc.) |
+| `pre-push` | Reminds you when pushing directly to master |
+
+**Bypass when needed:** `git commit --no-verify` or `git push --no-verify`
+
+See `GIT_WORKFLOW.md` for full Git workflow reference.
+
 ## Dependencies
 
 **Backend:** Python 3.10+, `pip install -r requirements.txt`
