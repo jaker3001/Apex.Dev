@@ -5,7 +5,7 @@ REST endpoints for managing conversation history.
 """
 
 from typing import Optional
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
 import sys
 from pathlib import Path
 
@@ -21,6 +21,7 @@ from database import (
     log_activity,
 )
 from api.schemas.chat import ConversationResponse, ConversationListResponse
+from api.routes.auth import require_auth, UserResponse
 
 router = APIRouter()
 
@@ -64,6 +65,7 @@ def transform_conversation(conv: dict) -> dict:
 async def list_conversations(
     limit: int = Query(default=50, le=100),
     include_inactive: bool = Query(default=False),
+    user: UserResponse = Depends(require_auth),
 ):
     """
     List all conversations with preview of first message.
@@ -77,6 +79,7 @@ async def list_conversations(
     conversations = get_conversations_with_preview(
         limit=limit,
         include_inactive=include_inactive,
+        user_id=user.id,
     )
 
     # Add model display names and transform to camelCase
@@ -96,13 +99,20 @@ async def list_conversations(
 
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation_detail(conversation_id: int):
+async def get_conversation_detail(
+    conversation_id: int,
+    user: UserResponse = Depends(require_auth),
+):
     """
     Get a specific conversation by ID with all messages.
     """
     conversation = get_conversation(conversation_id)
 
     if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check user owns this conversation
+    if conversation.get("user_id") and conversation.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Get messages for this conversation
@@ -138,6 +148,7 @@ async def get_conversation_detail(conversation_id: int):
 async def get_conversation_messages(
     conversation_id: int,
     limit: Optional[int] = Query(default=None),
+    user: UserResponse = Depends(require_auth),
 ):
     """
     Get messages for a specific conversation.
@@ -145,6 +156,10 @@ async def get_conversation_messages(
     conversation = get_conversation(conversation_id)
 
     if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check user owns this conversation
+    if conversation.get("user_id") and conversation.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     messages = get_messages_by_conversation(conversation_id, limit=limit)
@@ -162,7 +177,10 @@ async def get_conversation_messages(
 
 
 @router.post("/conversations/{conversation_id}/resume")
-async def resume_conversation(conversation_id: int):
+async def resume_conversation(
+    conversation_id: int,
+    user: UserResponse = Depends(require_auth),
+):
     """
     Resume a previous conversation session.
 
@@ -171,6 +189,10 @@ async def resume_conversation(conversation_id: int):
     conversation = get_conversation(conversation_id)
 
     if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check user owns this conversation
+    if conversation.get("user_id") and conversation.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     session_id = conversation.get("session_id")
@@ -200,6 +222,7 @@ async def resume_conversation(conversation_id: int):
 async def update_conversation(
     conversation_id: int,
     title: Optional[str] = None,
+    user: UserResponse = Depends(require_auth),
 ):
     """
     Update a conversation's title.
@@ -209,6 +232,10 @@ async def update_conversation(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    # Check user owns this conversation
+    if conversation.get("user_id") and conversation.get("user_id") != user.id:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
     if title:
         update_conversation_title(conversation_id, title)
 
@@ -216,13 +243,20 @@ async def update_conversation(
 
 
 @router.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: int):
+async def delete_conversation(
+    conversation_id: int,
+    user: UserResponse = Depends(require_auth),
+):
     """
     Delete a conversation and all its messages.
     """
     conversation = get_conversation(conversation_id)
 
     if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check user owns this conversation
+    if conversation.get("user_id") and conversation.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Log before deleting

@@ -131,9 +131,16 @@ export function useChat(options: UseChatOptions = {}) {
     const newSessionId = sessionId || generateSessionId();
     setSessionId(newSessionId);
 
-    // Build WebSocket URL with optional conversation_id and chat_project_id
+    // Build WebSocket URL with optional conversation_id, chat_project_id, and auth token
     let wsUrl = `ws://localhost:8000/api/ws/chat/${newSessionId}`;
     const params = new URLSearchParams();
+    
+    // Add auth token
+    const token = localStorage.getItem('apex_auth_token');
+    if (token) {
+      params.append('token', token);
+    }
+    
     if (resumeConversationIdRef.current) {
       params.append('conversation_id', String(resumeConversationIdRef.current));
     }
@@ -491,7 +498,15 @@ export function useChat(options: UseChatOptions = {}) {
     setSessionId(newSessionId);
 
     let wsUrl = `ws://localhost:8000/api/ws/chat/${newSessionId}`;
-    wsUrl += `?conversation_id=${conversationIdToResume}`;
+    const params = new URLSearchParams();
+    
+    // Add auth token
+    const token = localStorage.getItem('apex_auth_token');
+    if (token) {
+      params.append('token', token);
+    }
+    params.append('conversation_id', String(conversationIdToResume));
+    wsUrl += `?${params.toString()}`;
 
     const ws = new WebSocket(wsUrl);
 

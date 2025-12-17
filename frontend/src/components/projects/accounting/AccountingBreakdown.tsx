@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, FileText, DollarSign, Clock, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getTypeAcronym, getTypeLabel } from '@/lib/constants';
+import { getTypeLabel } from '@/lib/constants';
 import type { Estimate, Payment, LaborEntry, Receipt as ReceiptType } from '@/hooks/useProjects';
 
 // Fixed display order for estimate type groups

@@ -21,6 +21,7 @@ from api.services.chat_service import ChatService
 from api.services.title_service import generate_conversation_title
 from api.services.file_service import get_file_service, UploadedFile
 from api.schemas.chat import ChatMessage, StreamEvent
+from api.routes.auth import verify_token
 from database import create_message, log_activity, get_messages_by_conversation, get_conversation, update_conversation_title
 
 router = APIRouter()
@@ -52,6 +53,7 @@ class ConnectionManager:
         session_id: str,
         conversation_id: Optional[int] = None,
         chat_project_id: Optional[int] = None,
+        user_id: Optional[int] = None,
     ):
         """Accept a new WebSocket connection, optionally resuming a conversation or with project context."""
         await websocket.accept()
@@ -66,7 +68,7 @@ class ConnectionManager:
                     await service.resume_session(conversation_id)
                 else:
                     # Start new session with optional project context
-                    await service.start_session(chat_project_id=chat_project_id)
+                    await service.start_session(chat_project_id=chat_project_id, user_id=user_id)
                 self.chat_services[session_id] = service
             except Exception as e:
                 logger.error(f"Failed to start session for {session_id}: {e}", exc_info=True)
@@ -143,6 +145,7 @@ async def _generate_and_send_title(
 async def websocket_chat(
     websocket: WebSocket,
     session_id: str,
+    token: Optional[str] = None,
     conversation_id: Optional[int] = None,
     chat_project_id: Optional[int] = None,
 ):
@@ -150,6 +153,7 @@ async def websocket_chat(
     WebSocket endpoint for real-time chat.
 
     Query Parameters:
+    - token: JWT authentication token (required)
     - conversation_id: Optional ID of conversation to resume
     - chat_project_id: Optional Chat Mode project ID for context injection
 
@@ -164,7 +168,21 @@ async def websocket_chat(
         - {"type": "stream_end", "task_id": ..., "message_id": ...}
         - {"type": "error", "message": "..."}
     """
-    await manager.connect(websocket, session_id, conversation_id=conversation_id, chat_project_id=chat_project_id)
+    # Verify authentication
+    user_id = None
+    if token:
+        payload = verify_token(token)
+        if payload:
+            user_id = payload.get("user_id")
+
+    # Reject connection if no valid auth
+    if user_id is None:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "message": "Authentication required"})
+        await websocket.close(code=4001, reason="Not authenticated")
+        return
+
+    await manager.connect(websocket, session_id, conversation_id=conversation_id, chat_project_id=chat_project_id, user_id=user_id)
 
     # Log connection
     log_activity(
