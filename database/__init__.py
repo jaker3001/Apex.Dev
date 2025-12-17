@@ -64,6 +64,30 @@ from .operations_apex import (
     get_media_for_project,
     update_media,
     delete_media,
+    # Labor entry operations
+    create_labor_entry,
+    get_labor_entry,
+    get_labor_entries_for_project,
+    update_labor_entry,
+    delete_labor_entry,
+    # Receipt operations
+    create_receipt,
+    get_receipt,
+    get_receipts_for_project,
+    update_receipt,
+    delete_receipt,
+    # Work order operations
+    create_work_order,
+    get_work_order,
+    get_work_orders_for_project,
+    update_work_order,
+    delete_work_order,
+    # Activity log operations (operations_apex version)
+    log_project_activity,
+    get_activity_for_project,
+    # Accounting operations
+    get_project_accounting_summary,
+    update_ready_to_invoice,
 )
 
 # Apex Assistant database functions
@@ -204,4 +228,28 @@ __all__ = [
     "get_media_for_project",
     "update_media",
     "delete_media",
+    # Labor entry operations
+    "create_labor_entry",
+    "get_labor_entry",
+    "get_labor_entries_for_project",
+    "update_labor_entry",
+    "delete_labor_entry",
+    # Receipt operations
+    "create_receipt",
+    "get_receipt",
+    "get_receipts_for_project",
+    "update_receipt",
+    "delete_receipt",
+    # Work order operations
+    "create_work_order",
+    "get_work_order",
+    "get_work_orders_for_project",
+    "update_work_order",
+    "delete_work_order",
+    # Activity log operations (project-specific)
+    "log_project_activity",
+    "get_activity_for_project",
+    # Accounting operations
+    "get_project_accounting_summary",
+    "update_ready_to_invoice",
 ]

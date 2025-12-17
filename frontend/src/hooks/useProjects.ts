@@ -146,6 +146,117 @@ export interface Media {
   uploaded_by_name?: string;
 }
 
+// =============================================================================
+// NEW ACCOUNTING TYPES
+// =============================================================================
+
+export type WorkCategory = 'demo' | 'drying' | 'cleanup' | 'monitoring' | 'repair' | 'admin' | 'travel' | 'other';
+
+export interface LaborEntry {
+  id: number;
+  project_id: number;
+  employee_id?: number;
+  work_date: string;
+  hours: number;
+  hourly_rate?: number;
+  work_category?: WorkCategory | string;
+  description?: string;
+  billable: boolean;
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
+  // Computed
+  employee_name?: string;
+  total_cost?: number;
+}
+
+export type ExpenseCategory = 'materials' | 'equipment_rental' | 'subcontractor' | 'disposal' | 'permit' | 'supplies' | 'other';
+export type PaidBy = 'company_card' | 'cash' | 'personal_reimbursement' | 'vendor_invoice';
+
+export interface Receipt {
+  id: number;
+  project_id: number;
+  vendor_id?: number;
+  expense_category: ExpenseCategory | string;
+  description: string;
+  amount: number;
+  expense_date: string;
+  receipt_file_path?: string;
+  reimbursable: boolean;
+  paid_by?: PaidBy | string;
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
+  // Computed
+  vendor_name?: string;
+}
+
+export type WorkOrderStatus = 'draft' | 'approved' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface WorkOrder {
+  id: number;
+  project_id: number;
+  work_order_number?: string;
+  title: string;
+  description?: string;
+  budget_amount?: number;
+  status: WorkOrderStatus | string;
+  approved_by?: number;
+  approved_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Computed
+  approved_by_name?: string;
+}
+
+export interface ActivityLogEntry {
+  id: number;
+  project_id: number;
+  event_type: string;
+  event_subtype?: string;
+  entity_type?: string;
+  entity_id?: number;
+  description: string;
+  old_value?: string;
+  new_value?: string;
+  amount?: number;
+  actor_id?: number;
+  metadata?: string;
+  created_at?: string;
+  // Computed
+  actor_name?: string;
+}
+
+export interface AccountingSummary {
+  // Estimates
+  total_estimates: number;
+  approved_estimates: number;
+  pending_estimates: number;
+  // Payments
+  total_paid: number;
+  balance_due: number;
+  // Work Orders
+  work_order_budget: number;
+  // Labor
+  total_labor_cost: number;
+  total_labor_hours: number;
+  billable_labor_cost: number;
+  billable_labor_hours: number;
+  // Materials/Expenses
+  total_materials_cost: number;
+  total_expenses: number;
+  reimbursable_expenses: number;
+  // Profitability
+  gross_profit: number;
+  gross_profit_percentage: number;
+  // Counts
+  estimate_count: number;
+  payment_count: number;
+  labor_entry_count: number;
+  receipt_count: number;
+  work_order_count: number;
+}
+
 export interface ProjectFull extends Project {
   client?: Client;
   carrier?: Organization;
@@ -154,6 +265,12 @@ export interface ProjectFull extends Project {
   estimates: Estimate[];
   payments: Payment[];
   media: Media[];
+  // New accounting-related data
+  labor_entries: LaborEntry[];
+  receipts: Receipt[];
+  work_orders: WorkOrder[];
+  accounting_summary?: AccountingSummary;
+  ready_to_invoice?: boolean;
 }
 
 export interface ProjectStats {
@@ -588,4 +705,356 @@ export function groupProjectsByStatus(projects: Project[]): Record<string, Proje
   });
 
   return groups;
+}
+
+// =============================================================================
+// LABOR ENTRY HOOKS
+// =============================================================================
+
+async function createLaborEntry(
+  projectId: number,
+  data: {
+    employee_id?: number;
+    work_date: string;
+    hours: number;
+    hourly_rate?: number;
+    work_category?: string;
+    description?: string;
+    billable?: boolean;
+  }
+): Promise<LaborEntry> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/labor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create labor entry');
+  return res.json();
+}
+
+async function updateLaborEntry(
+  projectId: number,
+  laborId: number,
+  data: Partial<LaborEntry>
+): Promise<LaborEntry> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/labor/${laborId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update labor entry');
+  return res.json();
+}
+
+async function deleteLaborEntry(projectId: number, laborId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/labor/${laborId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete labor entry');
+}
+
+export function useCreateLaborEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Omit<LaborEntry, 'id' | 'project_id' | 'created_at' | 'updated_at' | 'employee_name' | 'total_cost'> }) =>
+      createLaborEntry(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useUpdateLaborEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, laborId, data }: { projectId: number; laborId: number; data: Partial<LaborEntry> }) =>
+      updateLaborEntry(projectId, laborId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useDeleteLaborEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, laborId }: { projectId: number; laborId: number }) =>
+      deleteLaborEntry(projectId, laborId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// RECEIPT HOOKS
+// =============================================================================
+
+async function createReceipt(
+  projectId: number,
+  data: {
+    vendor_id?: number;
+    expense_category: string;
+    description: string;
+    amount: number;
+    expense_date: string;
+    receipt_file_path?: string;
+    reimbursable?: boolean;
+    paid_by?: string;
+  }
+): Promise<Receipt> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/receipts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create receipt');
+  return res.json();
+}
+
+async function uploadReceiptFile(
+  projectId: number,
+  file: File
+): Promise<{ file_path: string; file_name: string; file_size: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE}/projects/${projectId}/receipts/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to upload receipt file');
+  }
+  return res.json();
+}
+
+async function updateReceipt(
+  projectId: number,
+  receiptId: number,
+  data: Partial<Receipt>
+): Promise<Receipt> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/receipts/${receiptId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update receipt');
+  return res.json();
+}
+
+async function deleteReceipt(projectId: number, receiptId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/receipts/${receiptId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete receipt');
+}
+
+export function useCreateReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Omit<Receipt, 'id' | 'project_id' | 'created_at' | 'updated_at' | 'vendor_name'> }) =>
+      createReceipt(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useUploadReceiptFile() {
+  return useMutation({
+    mutationFn: ({ projectId, file }: { projectId: number; file: File }) =>
+      uploadReceiptFile(projectId, file),
+  });
+}
+
+export function useUpdateReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, receiptId, data }: { projectId: number; receiptId: number; data: Partial<Receipt> }) =>
+      updateReceipt(projectId, receiptId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useDeleteReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, receiptId }: { projectId: number; receiptId: number }) =>
+      deleteReceipt(projectId, receiptId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// WORK ORDER HOOKS
+// =============================================================================
+
+async function createWorkOrder(
+  projectId: number,
+  data: {
+    work_order_number?: string;
+    title: string;
+    description?: string;
+    budget_amount?: number;
+    status?: string;
+    approved_by?: number;
+    approved_date?: string;
+  }
+): Promise<WorkOrder> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/work-orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create work order');
+  return res.json();
+}
+
+async function updateWorkOrder(
+  projectId: number,
+  workOrderId: number,
+  data: Partial<WorkOrder>
+): Promise<WorkOrder> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/work-orders/${workOrderId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update work order');
+  return res.json();
+}
+
+async function deleteWorkOrder(projectId: number, workOrderId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/work-orders/${workOrderId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete work order');
+}
+
+export function useCreateWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: Omit<WorkOrder, 'id' | 'project_id' | 'created_at' | 'updated_at' | 'approved_by_name'> }) =>
+      createWorkOrder(projectId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useUpdateWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, workOrderId, data }: { projectId: number; workOrderId: number; data: Partial<WorkOrder> }) =>
+      updateWorkOrder(projectId, workOrderId, data),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+export function useDeleteWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, workOrderId }: { projectId: number; workOrderId: number }) =>
+      deleteWorkOrder(projectId, workOrderId),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectActivity', projectId] });
+    },
+  });
+}
+
+// =============================================================================
+// ACTIVITY LOG HOOKS
+// =============================================================================
+
+async function fetchActivityLog(
+  projectId: number,
+  options?: { eventTypes?: string[]; limit?: number; offset?: number }
+): Promise<{ activities: ActivityLogEntry[]; total: number }> {
+  const params = new URLSearchParams();
+  if (options?.eventTypes?.length) {
+    params.set('event_types', options.eventTypes.join(','));
+  }
+  if (options?.limit) {
+    params.set('limit', String(options.limit));
+  }
+  if (options?.offset) {
+    params.set('offset', String(options.offset));
+  }
+
+  const queryString = params.toString();
+  const url = `${API_BASE}/projects/${projectId}/activity${queryString ? `?${queryString}` : ''}`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch activity log');
+  return res.json();
+}
+
+export function useActivityLog(
+  projectId: number,
+  options?: { eventTypes?: string[]; limit?: number; offset?: number }
+) {
+  return useQuery({
+    queryKey: ['projectActivity', projectId, options],
+    queryFn: () => fetchActivityLog(projectId, options),
+    enabled: projectId > 0,
+  });
+}
+
+// =============================================================================
+// ACCOUNTING SUMMARY HOOKS
+// =============================================================================
+
+async function fetchAccountingSummary(projectId: number): Promise<AccountingSummary> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/accounting-summary`);
+  if (!res.ok) throw new Error('Failed to fetch accounting summary');
+  return res.json();
+}
+
+export function useAccountingSummary(projectId: number) {
+  return useQuery({
+    queryKey: ['accountingSummary', projectId],
+    queryFn: () => fetchAccountingSummary(projectId),
+    enabled: projectId > 0,
+  });
+}
+
+// =============================================================================
+// READY TO INVOICE TOGGLE
+// =============================================================================
+
+async function toggleReadyToInvoice(projectId: number, ready: boolean): Promise<{ ready_to_invoice: boolean }> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/ready-to-invoice?ready=${ready}`, {
+    method: 'PATCH',
+  });
+  if (!res.ok) throw new Error('Failed to update ready to invoice status');
+  return res.json();
+}
+
+export function useToggleReadyToInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, ready }: { projectId: number; ready: boolean }) =>
+      toggleReadyToInvoice(projectId, ready),
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['accountingSummary', projectId] });
+    },
+  });
 }

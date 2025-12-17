@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { BaseModal } from './BaseModal';
 import { useCreateEstimate, useUploadEstimateFile, type Estimate } from '@/hooks/useProjects';
 import { TrendingDown, Upload, FileText, X } from 'lucide-react';
+import { ESTIMATE_TYPES } from '@/lib/constants';
 
 interface AddEstimateModalProps {
   projectId: number;
@@ -10,12 +11,6 @@ interface AddEstimateModalProps {
   onClose: () => void;
   revisionOf?: Estimate; // If set, this is a revision of an existing estimate
 }
-
-const ESTIMATE_TYPES = [
-  { value: 'mitigation', label: 'Mitigation' },
-  { value: 'reconstruction', label: 'Reconstruction' },
-  { value: 'remodel', label: 'Remodel' },
-];
 
 const ESTIMATE_STATUSES = [
   { value: 'draft', label: 'Draft' },

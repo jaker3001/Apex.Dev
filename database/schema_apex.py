@@ -259,6 +259,101 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
     """)
 
     # =========================================================================
+    # LABOR ENTRIES TABLE
+    # Per-employee hours tracking with hourly rate
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS labor_entries (
+            id INTEGER PRIMARY KEY,
+            project_id INTEGER NOT NULL,
+            employee_id INTEGER,
+            work_date TEXT NOT NULL,
+            hours REAL NOT NULL,
+            hourly_rate REAL,
+            work_category TEXT,
+            description TEXT,
+            billable INTEGER DEFAULT 1,
+            created_by INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects(id),
+            FOREIGN KEY (employee_id) REFERENCES contacts(id),
+            FOREIGN KEY (created_by) REFERENCES contacts(id)
+        )
+    """)
+
+    # =========================================================================
+    # RECEIPTS TABLE
+    # Expense and receipt tracking for materials, rentals, subcontractors
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS receipts (
+            id INTEGER PRIMARY KEY,
+            project_id INTEGER NOT NULL,
+            vendor_id INTEGER,
+            expense_category TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            expense_date TEXT NOT NULL,
+            receipt_file_path TEXT,
+            reimbursable INTEGER DEFAULT 0,
+            paid_by TEXT,
+            created_by INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects(id),
+            FOREIGN KEY (vendor_id) REFERENCES organizations(id),
+            FOREIGN KEY (created_by) REFERENCES contacts(id)
+        )
+    """)
+
+    # =========================================================================
+    # WORK ORDERS TABLE
+    # Scopes of work that may differ from or precede formal estimates
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS work_orders (
+            id INTEGER PRIMARY KEY,
+            project_id INTEGER NOT NULL,
+            work_order_number TEXT,
+            title TEXT NOT NULL,
+            description TEXT,
+            budget_amount REAL,
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'approved', 'in_progress', 'completed', 'cancelled')),
+            approved_by INTEGER,
+            approved_date TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects(id),
+            FOREIGN KEY (approved_by) REFERENCES contacts(id)
+        )
+    """)
+
+    # =========================================================================
+    # ACTIVITY LOG TABLE
+    # Unified event log for Event Viewer feature
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY,
+            project_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            event_subtype TEXT,
+            entity_type TEXT,
+            entity_id INTEGER,
+            description TEXT NOT NULL,
+            old_value TEXT,
+            new_value TEXT,
+            amount REAL,
+            actor_id INTEGER,
+            metadata TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects(id),
+            FOREIGN KEY (actor_id) REFERENCES contacts(id)
+        )
+    """)
+
+    # =========================================================================
     # INDEXES
     # =========================================================================
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_projects_job_number ON projects(job_number)")
@@ -269,6 +364,15 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_estimates_project_id ON estimates(project_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_labor_entries_project_id ON labor_entries(project_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_labor_entries_employee_id ON labor_entries(employee_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_labor_entries_work_date ON labor_entries(work_date)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_receipts_project_id ON receipts(project_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_receipts_expense_date ON receipts(expense_date)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_work_orders_project_id ON work_orders(project_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_log_project_id ON activity_log(project_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_log_event_type ON activity_log(event_type)")
 
     # =========================================================================
     # VIEWS
@@ -320,6 +424,7 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
     """)
 
     # View: Contacts with organization info
+    cursor.execute("DROP VIEW IF EXISTS v_contacts")
     cursor.execute("""
         CREATE VIEW IF NOT EXISTS v_contacts AS
         SELECT
@@ -331,7 +436,8 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
             org.org_type,
             c.role,
             c.phone,
-            c.email
+            c.email,
+            c.is_active
         FROM contacts c
         JOIN organizations org ON c.organization_id = org.id
     """)
@@ -429,6 +535,11 @@ def _run_ops_migrations(cursor: sqlite3.Cursor) -> None:
     if "cos_date" not in existing_columns:
         cursor.execute("ALTER TABLE projects ADD COLUMN cos_date TEXT")
         print("Migration: Added 'cos_date' column to projects")
+
+    # Add ready_to_invoice column if missing
+    if "ready_to_invoice" not in existing_columns:
+        cursor.execute("ALTER TABLE projects ADD COLUMN ready_to_invoice INTEGER DEFAULT 0")
+        print("Migration: Added 'ready_to_invoice' column to projects")
 
 
 if __name__ == "__main__":
