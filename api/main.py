@@ -11,6 +11,10 @@ Usage:
 
 import asyncio
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Fix for Windows subprocess support in asyncio
 # The Claude Agent SDK uses subprocess to spawn Claude Code CLI,
