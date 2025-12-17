@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useChat } from '@/hooks/useChat';
 import { ChatHeader, ChatInput, MessageList } from '@/components/chat';
 import { ProjectSelector, type Project } from '@/components/chat/ProjectSelector';
+import { useChatContext } from '@/contexts/ChatContext';
 
 // Demo projects
 const DEMO_PROJECTS: Project[] = [
@@ -39,8 +40,8 @@ export function ChatPage() {
     onModelSwitch: (from, to) => console.log(`[Chat] Model switched from ${from} to ${to}`),
   });
 
-  // Chat mode state
-  const [mode, setMode] = useState<'agent' | 'chat'>('agent');
+  // Chat mode from context
+  const { mode, setMode } = useChatContext();
 
   // Project state (for Chat Mode)
   const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
@@ -66,10 +67,10 @@ export function ChatPage() {
     }
   };
 
-  const handleModeChange = (newMode: 'agent' | 'chat') => {
+  const handleModeChange = (newMode: 'task' | 'chat') => {
     setMode(newMode);
-    // Clear project when switching to agent mode
-    if (newMode === 'agent') {
+    // Clear project when switching to task mode
+    if (newMode === 'task') {
       setCurrentProjectId(null);
     }
   };

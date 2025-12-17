@@ -12,6 +12,7 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
+import { ChatProvider } from './contexts/ChatContext';
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -42,8 +43,9 @@ function AuthenticatedApp() {
 
   // Show the app if authenticated
   return (
-    <Routes>
-      <Route path="/" element={<AppLayout />}>
+    <ChatProvider>
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
         {/* Chat Section */}
         <Route index element={<ChatPage />} />
 
@@ -59,7 +61,8 @@ function AuthenticatedApp() {
         <Route path="settings/analytics" element={<AnalyticsPage />} />
         <Route path="settings/learn" element={<LearnPage />} />
       </Route>
-    </Routes>
+      </Routes>
+    </ChatProvider>
   );
 }
 

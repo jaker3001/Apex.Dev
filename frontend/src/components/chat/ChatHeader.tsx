@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 interface ChatHeaderProps {
   isConnected: boolean;
   onNewChat: () => void;
-  mode: 'agent' | 'chat';
-  onModeChange: (mode: 'agent' | 'chat') => void;
+  mode: 'task' | 'chat';
+  onModeChange: (mode: 'task' | 'chat') => void;
   model: string;
   onModelChange: (model: string) => void;
   currentProject: string | null;
@@ -45,10 +45,10 @@ export function ChatHeader({
               onClick={() => setShowModeDropdown(!showModeDropdown)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-muted transition-colors"
             >
-              {mode === 'agent' ? (
+              {mode === 'task' ? (
                 <>
                   <Bot className="h-4 w-4 text-primary" />
-                  <span className="font-medium">Agent Mode</span>
+                  <span className="font-medium">Task Mode</span>
                 </>
               ) : (
                 <>
@@ -63,16 +63,16 @@ export function ChatHeader({
               <div className="absolute left-0 top-full mt-1 bg-background border rounded-lg shadow-lg py-1 z-20 min-w-[200px]">
                 <button
                   onClick={() => {
-                    onModeChange('agent');
+                    onModeChange('task');
                     setShowModeDropdown(false);
                   }}
                   className={`w-full px-3 py-2 text-left hover:bg-muted flex items-center gap-3 ${
-                    mode === 'agent' ? 'bg-primary/5' : ''
+                    mode === 'task' ? 'bg-primary/5' : ''
                   }`}
                 >
                   <Bot className="h-4 w-4 text-primary" />
                   <div>
-                    <p className="font-medium">Agent Mode</p>
+                    <p className="font-medium">Task Mode</p>
                     <p className="text-xs text-muted-foreground">
                       Full tools, file ops, sub-agents
                     </p>

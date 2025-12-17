@@ -1,44 +1,31 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Bot, MoreHorizontal, Play, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Bot, MoreHorizontal, Play, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { AgentWizard, type AgentConfig } from '@/components/builder/AgentWizard';
-
-// Mock data for demo - will be replaced with API calls
-const DEMO_AGENTS: (AgentConfig & { id: string; usageCount: number })[] = [
-  {
-    id: '1',
-    name: 'Estimate Reviewer',
-    description: 'Reviews restoration estimates for completeness and accuracy',
-    tools: ['Read', 'Glob', 'Grep'],
-    systemPrompt: 'You are an expert at reviewing water damage restoration estimates...',
-    usageCount: 47,
-  },
-  {
-    id: '2',
-    name: 'Email Drafter',
-    description: 'Drafts professional emails to adjusters and clients',
-    tools: ['Read', 'Write'],
-    systemPrompt: 'You draft professional, concise emails for insurance communications...',
-    usageCount: 123,
-  },
-];
+import { useAgents } from '@/hooks/useAgents';
 
 export function AgentsPage() {
   const [showWizard, setShowWizard] = useState(false);
-  const [agents, setAgents] = useState(DEMO_AGENTS);
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState<number | null>(null);
 
-  const handleSaveAgent = (config: AgentConfig) => {
-    const newAgent = {
-      ...config,
-      id: Date.now().toString(),
-      usageCount: 0,
-    };
-    setAgents((prev) => [...prev, newAgent]);
+  // Use the shared hook for fetching agents
+  const { agents, isLoading, error, createAgent, deleteAgent, fetchAgents } = useAgents({
+    activeOnly: false // Show all agents in admin page
+  });
+
+  const handleSaveAgent = async (config: AgentConfig) => {
+    await createAgent({
+      name: config.name,
+      description: config.description,
+      capabilities: config.tools,
+    });
   };
 
-  const handleDeleteAgent = (id: string) => {
-    setAgents((prev) => prev.filter((a) => a.id !== id));
+  const handleDeleteAgent = async (id: number, name: string) => {
+    if (window.confirm(`Delete agent "${name}"?`)) {
+      await deleteAgent(name);
+      await fetchAgents();
+    }
     setMenuOpen(null);
   };
 
@@ -59,7 +46,21 @@ export function AgentsPage() {
           </Button>
         </div>
 
-        {agents.length === 0 ? (
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="border border-destructive/50 bg-destructive/10 rounded-lg p-4 text-destructive">
+            {error}
+          </div>
+        )}
+
+        {!isLoading && !error && agents.length === 0 ? (
           /* Empty State */
           <div className="border-2 border-dashed rounded-lg p-12 text-center">
             <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -73,7 +74,7 @@ export function AgentsPage() {
               Create your first agent
             </Button>
           </div>
-        ) : (
+        ) : !isLoading && !error && (
           /* Agent Cards Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {agents.map((agent) => (
@@ -105,7 +106,7 @@ export function AgentsPage() {
                         </button>
                         <button
                           className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-destructive"
-                          onClick={() => handleDeleteAgent(agent.id)}
+                          onClick={() => handleDeleteAgent(agent.id, agent.name)}
                         >
                           <Trash2 className="h-4 w-4" />
                           Delete
@@ -115,29 +116,36 @@ export function AgentsPage() {
                   </div>
                 </div>
 
-                <h3 className="font-semibold mb-1">{agent.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold">{agent.name}</h3>
+                  {!agent.is_active && (
+                    <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                      Inactive
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                   {agent.description}
                 </p>
 
                 <div className="flex items-center justify-between">
                   <div className="flex flex-wrap gap-1">
-                    {agent.tools.slice(0, 3).map((tool) => (
+                    {agent.capabilities?.slice(0, 3).map((capability) => (
                       <span
-                        key={tool}
+                        key={capability}
                         className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs"
                       >
-                        {tool}
+                        {capability}
                       </span>
                     ))}
-                    {agent.tools.length > 3 && (
+                    {agent.capabilities && agent.capabilities.length > 3 && (
                       <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs">
-                        +{agent.tools.length - 3}
+                        +{agent.capabilities.length - 3}
                       </span>
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {agent.usageCount} uses
+                    {agent.times_used} uses
                   </span>
                 </div>
 
