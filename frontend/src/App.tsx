@@ -44,15 +44,20 @@ function AuthenticatedApp() {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
+        {/* Chat Section */}
         <Route index element={<ChatPage />} />
+
+        {/* Projects Section */}
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:id" element={<ProjectDetailPage />} />
-        <Route path="agents" element={<AgentsPage />} />
-        <Route path="skills" element={<SkillsPage />} />
-        <Route path="mcp" element={<MCPPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="learn" element={<LearnPage />} />
+
+        {/* Settings/Admin Section */}
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/agents" element={<AgentsPage />} />
+        <Route path="settings/skills" element={<SkillsPage />} />
+        <Route path="settings/mcp" element={<MCPPage />} />
+        <Route path="settings/analytics" element={<AnalyticsPage />} />
+        <Route path="settings/learn" element={<LearnPage />} />
       </Route>
     </Routes>
   );

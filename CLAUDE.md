@@ -119,6 +119,40 @@ manager.enable("playwright")
 
 Or use `python main.py --setup-mcp` to add example configurations.
 
+## Frontend Navigation Architecture
+
+The frontend uses a **top nav + contextual sidebar** pattern:
+
+### Top Navigation Bar (`TopNav.tsx`)
+- **Chat** - Main AI chat interface (`/`)
+- **Projects** - Job management (`/projects`)
+- **Settings** (gear icon) - Admin/builder features (`/settings`)
+
+### Contextual Sidebars
+Each section has its own sidebar that appears based on the current route:
+
+| Route | Sidebar | Contents |
+|-------|---------|----------|
+| `/` | `ChatSidebar.tsx` | New Chat button, conversation history |
+| `/projects/*` | `ProjectsSidebar.tsx` | Search, status filters, project list |
+| `/settings/*` | `SettingsSidebar.tsx` | Agents, Skills, MCP, Analytics, Docs |
+
+### Settings/Admin Routes
+Admin features are nested under `/settings`:
+- `/settings` - General settings
+- `/settings/agents` - Agent builder
+- `/settings/skills` - Skills configuration
+- `/settings/mcp` - MCP server management
+- `/settings/analytics` - Usage analytics
+- `/settings/learn` - Documentation
+
+### Key Layout Files
+- `src/components/layout/AppLayout.tsx` - Main layout with TopNav + conditional sidebar
+- `src/components/layout/TopNav.tsx` - Horizontal navigation bar
+- `src/components/layout/ChatSidebar.tsx` - Chat section sidebar
+- `src/components/layout/ProjectsSidebar.tsx` - Projects section sidebar
+- `src/components/layout/SettingsSidebar.tsx` - Settings section sidebar
+
 ## Domain Context
 
 This assistant is tailored for property damage restoration work:

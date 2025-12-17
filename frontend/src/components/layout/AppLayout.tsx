@@ -1,16 +1,38 @@
-import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
+import { Outlet, useLocation } from 'react-router-dom';
+import { TopNav } from './TopNav';
+import { ChatSidebar } from './ChatSidebar';
+import { ProjectsSidebar } from './ProjectsSidebar';
+import { SettingsSidebar } from './SettingsSidebar';
+
+type ActiveSection = 'chat' | 'projects' | 'settings';
+
+function getActiveSection(pathname: string): ActiveSection {
+  if (pathname.startsWith('/settings')) return 'settings';
+  if (pathname.startsWith('/projects')) return 'projects';
+  return 'chat';
+}
 
 export function AppLayout() {
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <Sidebar />
+  const location = useLocation();
+  const activeSection = getActiveSection(location.pathname);
 
-      {/* Main content */}
-      <main className="flex-1 overflow-hidden">
-        <Outlet />
-      </main>
+  return (
+    <div className="flex flex-col h-screen bg-background">
+      {/* Top Navigation */}
+      <TopNav />
+
+      {/* Main content area with conditional sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Contextual Sidebar */}
+        {activeSection === 'chat' && <ChatSidebar />}
+        {activeSection === 'projects' && <ProjectsSidebar />}
+        {activeSection === 'settings' && <SettingsSidebar />}
+
+        {/* Main content */}
+        <main className="flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
