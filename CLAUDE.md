@@ -4,217 +4,163 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Apex Assistant** is a personalized AI assistant for Apex Restoration LLC (property damage restoration company) built on the Claude Agent SDK. It provides an interactive session that tracks tasks, logs metrics for automation opportunity analysis, and integrates with MCP servers for external tools.
+**Apex Assistant** is a personalized AI assistant for Apex Restoration LLC (property damage restoration company) built on the Claude Agent SDK. It provides a web UI with real-time chat (via WebSocket), project management, and tracks metrics for automation opportunity analysis.
 
 ## Commands
 
 ```bash
-# Start interactive session
+# Backend - Start API server (port 8000)
+python run_server.py
+
+# Frontend - Development server (port 5173+)
+cd frontend && npm run dev
+
+# Frontend - Build for production
+cd frontend && npm run build
+
+# Frontend - Lint
+cd frontend && npm run lint
+
+# CLI - Interactive session (legacy)
 python main.py
 
-# Initialize database only
+# Initialize databases only
 python main.py --init-db
-
-# Add example MCP server configurations
-python main.py --setup-mcp
-
-# Specify working directory
-python main.py --working-dir /path/to/dir
 ```
 
 ## Dependencies
 
-- Python 3.10+
-- `ANTHROPIC_API_KEY` environment variable (get from https://console.anthropic.com/)
-- Install: `pip install -r requirements.txt`
+**Backend:** Python 3.10+, `pip install -r requirements.txt`
+- Requires `ANTHROPIC_API_KEY` environment variable
+- Uses `.env` file (auto-loaded by api/main.py)
+
+**Frontend:** Node.js, `cd frontend && npm install`
+- React 19, Vite 7, TailwindCSS 4, React Query, Zustand
 
 ## Architecture
 
 ```
 apex-assistant/
-├── main.py              # Entry point, CLI argument handling
-├── agents/
-│   └── orchestrator.py  # ApexOrchestrator - main agent class
-├── config/
-│   └── system_prompt.py # APEX_SYSTEM_PROMPT constant (customizable)
+├── run_server.py           # Production server entry (Windows asyncio fix)
+├── api/
+│   ├── main.py             # FastAPI app, CORS, router registration
+│   ├── routes/
+│   │   ├── chat.py         # WebSocket /ws/chat/{session_id}
+│   │   ├── conversations.py
+│   │   ├── projects.py     # CRUD for apex_operations.db
+│   │   ├── agents.py, skills.py, mcp.py, analytics.py
+│   │   └── auth.py         # JWT authentication
+│   ├── services/
+│   │   └── chat_service.py # ChatService wraps ClaudeSDKClient
+│   └── schemas/            # Pydantic models
 ├── database/
-│   ├── schema.py        # SQLite table definitions, init_database()
-│   └── operations.py    # CRUD operations for all tables
+│   ├── schema.py           # apex_assistant.db (assistant metrics)
+│   ├── schema_apex.py      # apex_operations.db (business data)
+│   └── operations*.py      # CRUD for both databases
+├── config/
+│   └── system_prompt.py    # APEX_SYSTEM_PROMPT (appended to claude_code preset)
 ├── mcp_manager/
-│   └── connections.py   # MCPConnectionManager class
-├── utils/
-│   └── metrics.py       # TaskMetrics dataclass, classify_automation_type()
-└── apex_assistant.db    # SQLite database (auto-created)
+│   └── connections.py      # MCPConnectionManager
+├── frontend/               # React SPA
+│   └── src/
+│       ├── pages/          # Route components
+│       ├── components/     # UI components
+│       └── contexts/       # React context (ChatContext)
+├── apex_assistant.db       # Assistant metrics database
+└── apex_operations.db      # Business operations database
 ```
 
-### Core Flow
+## Two Databases
 
-1. `main.py` parses args, checks API key, initializes database, creates `ApexOrchestrator`
-2. `ApexOrchestrator.run_interactive()` starts continuous conversation loop
-3. Each user message creates a task record, sends to Claude via `ClaudeSDKClient`
-4. Responses are streamed, tools recorded, metrics collected
-5. Task completion updates database with metrics for automation analysis
+**apex_assistant.db** - Assistant metrics and chat history
+- `tasks` - User requests with complexity metrics
+- `conversations`, `messages` - Chat sessions with model tracking
+- `agents` - Registered agent usage stats
+- `automation_candidates` - Patterns for potential automation
+- `mcp_connections` - Configured MCP servers
 
-### Database Tables
+**apex_operations.db** - Business operations (restoration jobs)
+- `projects` - Jobs (job_number is primary key)
+- `clients`, `organizations`, `contacts` - People and companies
+- `estimates`, `payments`, `notes`, `media` - Job documentation
 
-- **tasks** - Every user request with metrics (complexity, tools_used, time_to_complete)
-- **conversations** - Chat sessions with session_id for resuming
-- **agents** - Registry of specialized agents with usage stats
-- **automation_candidates** - Patterns identified for potential automation
-- **files_processed** - Documents/images handled
-- **mcp_connections** - Configured MCP servers (stdio, sse, http)
+Enable foreign keys when connecting to apex_operations.db:
+```python
+conn.execute('PRAGMA foreign_keys = ON')
+```
 
-### Task Categories
+## WebSocket Chat Protocol
 
-Used in `tasks.category` for analytics:
-- `estimates`, `line_items`, `adjuster_comms`, `documentation`
-- `admin`, `research`, `scheduling`, `financial`, `other`
+Connect to `ws://localhost:8000/api/ws/chat/{session_id}`
 
-### Automation Classification
+**Client sends:**
+```json
+{"type": "message", "content": "...", "model": "claude-sonnet-4-5"}
+```
 
-`classify_automation_type(metrics)` returns:
-- **skill** - Simple, repeatable, ≤2 steps, ≤1 decision point
-- **sub-agent** - Requires judgment, multi-step, context awareness
-- **combo** - Complex workflow using 3+ tools
+**Server sends:**
+- `{"type": "init", "session_id": "...", "conversation_id": ...}`
+- `{"type": "stream_start", "model": "...", "model_name": "..."}`
+- `{"type": "text_delta", "content": "..."}`
+- `{"type": "tool_use", "tool": {"name": "...", "input": {...}, "status": "running"}}`
+- `{"type": "tool_result", "tool": {"name": "...", "output": ..., "status": "completed"}}`
+- `{"type": "stream_end", "task_id": ..., "message_id": ...}`
+- `{"type": "error", "message": "..."}`
+
+**Available models:** `claude-sonnet-4-5`, `claude-opus-4-5`, `claude-sonnet-4-0`, `claude-haiku-4-5`
+
+## API Endpoints
+
+All routes prefixed with `/api`:
+- `POST /auth/login`, `POST /auth/logout` - JWT authentication
+- `GET /conversations`, `GET /conversations/{id}/messages`
+- `GET /projects`, `GET /projects/{id}`, `POST /projects`, `PATCH /projects/{id}`
+- `GET /agents`, `GET /skills`, `GET /mcp`, `GET /analytics`
 
 ## Key Classes
 
-### ApexOrchestrator (`agents/orchestrator.py`)
+**ChatService** (`api/services/chat_service.py`) - Main entry point for web UI
+- Wraps `ClaudeSDKClient` with streaming support
+- Tracks metrics per task, stores in database
+- Supports mid-conversation model switching via `set_model()`
 
-Main agent that wraps `ClaudeSDKClient`. Handles:
-- Building `ClaudeAgentOptions` with system prompt and MCP servers
-- Session lifecycle (start/end)
-- Message send/receive with metric collection
-- Task and conversation database logging
+**MCPConnectionManager** (`mcp_manager/connections.py`)
+- CRUD for MCP server configs in database
+- `get_active_mcp_servers()` returns configs for ClaudeAgentOptions
 
-### MCPConnectionManager (`mcp_manager/connections.py`)
-
-Manages MCP server configurations in database:
-- `add_stdio_server()`, `add_sse_server()`, `add_http_server()`
-- `enable()`, `disable()`, `set_error()`
-- `get_active_mcp_servers()` - formats configs for ClaudeAgentOptions
-
-### TaskMetrics (`utils/metrics.py`)
-
-Dataclass collecting per-task metrics:
-- `start()`, `complete()`, `add_step()`, `add_decision_point()`
-- `record_tool()`, `record_correction()`, `record_follow_up()`
-- Auto-calculates `complexity_score` (1-5)
+**TaskMetrics** (`utils/metrics.py`)
+- Dataclass for per-task metrics (steps, tools, corrections, complexity)
+- `classify_automation_type()` returns `skill` | `sub-agent` | `combo`
 
 ## Customization
 
-### System Prompt
+Edit `config/system_prompt.py` to modify assistant behavior. The `APEX_SYSTEM_PROMPT` string is appended to Claude Code's preset system prompt.
 
-Edit `config/system_prompt.py` to modify the assistant's behavior. The `APEX_SYSTEM_PROMPT` string is appended to Claude Code's default system prompt.
+## Frontend Navigation
 
-### MCP Servers
+**Top nav + contextual sidebar pattern** - see `components/layout/`
 
-Add servers programmatically:
-```python
-from mcp_manager import MCPConnectionManager
-manager = MCPConnectionManager()
-manager.add_stdio_server("playwright", "npx", ["@playwright/mcp@latest"])
-manager.enable("playwright")
-```
+| Route | Sidebar | Purpose |
+|-------|---------|---------|
+| `/` | ChatSidebar | Conversation history |
+| `/projects/*` | ProjectsSidebar | Job search/filters |
+| `/settings/*` | SettingsSidebar | Admin features |
 
-Or use `python main.py --setup-mcp` to add example configurations.
-
-## Frontend Navigation Architecture
-
-The frontend uses a **top nav + contextual sidebar** pattern:
-
-### Top Navigation Bar (`TopNav.tsx`)
-- **Chat** - Main AI chat interface (`/`)
-- **Projects** - Job management (`/projects`)
-- **Settings** (gear icon) - Admin/builder features (`/settings`)
-
-### Contextual Sidebars
-Each section has its own sidebar that appears based on the current route:
-
-| Route | Sidebar | Contents |
-|-------|---------|----------|
-| `/` | `ChatSidebar.tsx` | New Chat button, conversation history |
-| `/projects/*` | `ProjectsSidebar.tsx` | Search, status filters, project list |
-| `/settings/*` | `SettingsSidebar.tsx` | Agents, Skills, MCP, Analytics, Docs |
-
-### Settings/Admin Routes
-Admin features are nested under `/settings`:
-- `/settings` - General settings
-- `/settings/agents` - Agent builder
-- `/settings/skills` - Skills configuration
-- `/settings/mcp` - MCP server management
-- `/settings/analytics` - Usage analytics
-- `/settings/learn` - Documentation
-
-### Key Layout Files
-- `src/components/layout/AppLayout.tsx` - Main layout with TopNav + conditional sidebar
-- `src/components/layout/TopNav.tsx` - Horizontal navigation bar
-- `src/components/layout/ChatSidebar.tsx` - Chat section sidebar
-- `src/components/layout/ProjectsSidebar.tsx` - Projects section sidebar
-- `src/components/layout/SettingsSidebar.tsx` - Settings section sidebar
+Settings sub-routes: `/settings/agents`, `/settings/skills`, `/settings/mcp`, `/settings/analytics`, `/settings/learn`
 
 ## Domain Context
 
-This assistant is tailored for property damage restoration work:
-- Estimates often use Xactimate format (PDFs/spreadsheets)
+This assistant is tailored for property damage restoration:
+- Estimates use Xactimate format (PDFs/spreadsheets)
 - Line item justifications reference IICRC standards
 - Adjuster communications need professional but firm tone
-- User is a non-technical business owner learning processes
+- User is a non-technical business owner
 
----
+## Development Guidelines
 
-## REQUIRED: Development Best Practices
-
-**These practices are MANDATORY for all code changes. This project is built for long-term maintainability.**
-
-### Git Workflow
-
-1. **Always use git** - Every change must be tracked in version control
-2. **Commit frequently** - Make atomic commits with clear messages after completing each logical unit of work
-3. **Check status before changes** - Run `git status` before starting work to understand current state
-4. **Never commit secrets** - API keys, passwords, and .env files must never be committed (see .gitignore)
-5. **Use feature branches** for significant changes (optional for small fixes)
-
-### Before Making Code Changes
-
-1. **Read before writing** - Always read existing code before modifying it
-2. **Understand the architecture** - Check how similar features are implemented elsewhere in the codebase
-3. **Check for existing patterns** - Follow established patterns, don't introduce new paradigms unnecessarily
-
-### Code Quality
-
-1. **Test your changes** - Verify functionality works before considering a task complete
-2. **Handle errors gracefully** - Add appropriate error handling for user-facing features
-3. **Keep it simple** - Avoid over-engineering; solve the current problem, not hypothetical future ones
-4. **Don't leave dead code** - Remove unused imports, functions, and commented-out code
-
-### API & Backend
-
-1. **Backend supports all frontend needs** - If adding UI fields, ensure the backend API already handles them (or add support)
-2. **Validate inputs** - Use Pydantic models for API request validation
-3. **Return meaningful errors** - API errors should help the user understand what went wrong
-
-### Frontend
-
-1. **Match existing UI patterns** - New components should look consistent with the rest of the app
-2. **Test in browser** - Use Playwright or manual testing to verify UI changes work
-3. **Handle loading and error states** - Every async operation needs loading indicators and error handling
-
-### Database
-
-1. **Never lose data** - Be careful with migrations; always have a rollback plan
-2. **Use the existing schema patterns** - Check `database/schema.py` before adding new tables
-
-### Documentation
-
-1. **Update CLAUDE.md** - If adding new features or changing architecture, update this file
-2. **Code should be self-documenting** - Use clear variable/function names; add comments only for complex logic
-
-### Task Completion Checklist
-
-Before marking any task complete:
-- [ ] Code works as expected (tested)
-- [ ] No console errors or warnings
-- [ ] Changes committed to git with descriptive message
-- [ ] No secrets or sensitive data exposed
-- [ ] CLAUDE.md updated if architecture changed
+- **Read before writing** - Always read existing code before modifying
+- **Follow existing patterns** - Check how similar features are implemented
+- **Backend + frontend in sync** - If adding UI fields, ensure API supports them
+- **Use Pydantic** for API request/response validation
+- **Handle loading/error states** in frontend async operations
+- **Update CLAUDE.md** if architecture changes
