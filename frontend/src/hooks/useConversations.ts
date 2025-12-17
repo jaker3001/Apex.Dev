@@ -101,6 +101,12 @@ export function useConversations(options: UseConversationsOptions = {}) {
     }
   }, []);
 
+  const updateConversationTitle = useCallback((id: number, title: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title } : c))
+    );
+  }, []);
+
   useEffect(() => {
     if (autoFetch) {
       fetchConversations();
@@ -115,5 +121,6 @@ export function useConversations(options: UseConversationsOptions = {}) {
     deleteConversation,
     getConversation,
     getMessages,
+    updateConversationTitle,
   };
 }

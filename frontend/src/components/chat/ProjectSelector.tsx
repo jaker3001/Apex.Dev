@@ -1,23 +1,16 @@
 import { useState } from 'react';
-import { X, Plus, FolderOpen, FileText, Trash2, Settings } from 'lucide-react';
+import { X, Plus, FolderOpen, FileText, Trash2, Settings, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  instructions: string;
-  files: string[];
-  createdAt: Date;
-}
+import type { ChatProject } from '@/hooks/useChatProjects';
 
 interface ProjectSelectorProps {
-  projects: Project[];
-  currentProjectId: string | null;
-  onSelect: (projectId: string | null) => void;
-  onCreate: (project: Omit<Project, 'id' | 'createdAt'>) => void;
-  onDelete: (projectId: string) => void;
+  projects: ChatProject[];
+  currentProjectId: number | null;
+  onSelect: (projectId: number | null) => void;
+  onCreate: (project: { name: string; description?: string; instructions?: string; linked_job_number?: string }) => void;
+  onDelete: (projectId: number) => void;
   onClose: () => void;
+  isLoading?: boolean;
 }
 
 export function ProjectSelector({
@@ -27,19 +20,25 @@ export function ProjectSelector({
   onCreate,
   onDelete,
   onClose,
+  isLoading: _isLoading = false,
 }: ProjectSelectorProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
     instructions: '',
-    files: [] as string[],
+    linked_job_number: '',
   });
 
   const handleCreate = () => {
     if (newProject.name.trim()) {
-      onCreate(newProject);
-      setNewProject({ name: '', description: '', instructions: '', files: [] });
+      onCreate({
+        name: newProject.name,
+        description: newProject.description || undefined,
+        instructions: newProject.instructions || undefined,
+        linked_job_number: newProject.linked_job_number || undefined,
+      });
+      setNewProject({ name: '', description: '', instructions: '', linked_job_number: '' });
       setShowCreate(false);
     }
   };
@@ -79,7 +78,7 @@ export function ProjectSelector({
                   type="text"
                   value={newProject.name}
                   onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                  placeholder="e.g., Insurance Claims Q4"
+                  placeholder="e.g., State Farm Claims Q4"
                   className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -105,6 +104,22 @@ export function ProjectSelector({
                   rows={4}
                   className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Linked Job Number
+                  <span className="text-muted-foreground font-normal ml-2">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newProject.linked_job_number}
+                  onChange={(e) => setNewProject({ ...newProject, linked_job_number: e.target.value })}
+                  placeholder="e.g., 202501-001-MIT"
+                  className="w-full px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Link to a job in your operations database for automatic context
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setShowCreate(false)}>
@@ -165,9 +180,10 @@ export function ProjectSelector({
                       <p className="text-sm text-muted-foreground truncate">
                         {project.description || 'No description'}
                       </p>
-                      {project.files.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {project.files.length} file(s) attached
+                      {project.linkedJobNumber && (
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <Link className="h-3 w-3" />
+                          {project.linkedJobNumber}
                         </p>
                       )}
                     </div>

@@ -4,11 +4,11 @@ import { ChatSidebar } from './ChatSidebar';
 import { ProjectsSidebar } from './ProjectsSidebar';
 import { SettingsSidebar } from './SettingsSidebar';
 
-type ActiveSection = 'chat' | 'projects' | 'settings';
+type ActiveSection = 'chat' | 'jobs' | 'settings';
 
 function getActiveSection(pathname: string): ActiveSection {
   if (pathname.startsWith('/settings')) return 'settings';
-  if (pathname.startsWith('/projects')) return 'projects';
+  if (pathname.startsWith('/jobs')) return 'jobs';
   return 'chat';
 }
 
@@ -25,7 +25,7 @@ export function AppLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Contextual Sidebar */}
         {activeSection === 'chat' && <ChatSidebar />}
-        {activeSection === 'projects' && <ProjectsSidebar />}
+        {activeSection === 'jobs' && <ProjectsSidebar />}
         {activeSection === 'settings' && <SettingsSidebar />}
 
         {/* Main content */}

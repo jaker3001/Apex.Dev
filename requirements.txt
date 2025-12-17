@@ -19,3 +19,10 @@ pydantic>=2.5.0
 
 # Authentication
 PyJWT>=2.8.0
+
+# File processing
+pypdf>=4.0.0
+pillow>=10.0.0
+
+# Anthropic API (for title generation)
+anthropic>=0.40.0

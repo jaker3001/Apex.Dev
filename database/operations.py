@@ -692,3 +692,103 @@ def get_activity_logs(
             log["data"] = json.loads(log["data"])
         logs.append(log)
     return logs
+
+
+# =============================================================================
+# CHAT PROJECT OPERATIONS (Claude Desktop style projects for Chat Mode)
+# =============================================================================
+
+def create_chat_project(
+    name: str,
+    description: Optional[str] = None,
+    instructions: Optional[str] = None,
+    knowledge_path: Optional[str] = None,
+    linked_job_number: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> int:
+    """Create a new chat project and return its ID."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO chat_projects (name, description, instructions, knowledge_path, linked_job_number)
+        VALUES (?, ?, ?, ?, ?)
+    """, (name, description, instructions, knowledge_path, linked_job_number))
+
+    project_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return project_id
+
+
+def get_chat_project(
+    project_id: int,
+    db_path: Optional[Path] = None
+) -> Optional[dict]:
+    """Get a chat project by ID."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM chat_projects WHERE id = ?", (project_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+
+
+def get_all_chat_projects(
+    db_path: Optional[Path] = None
+) -> list[dict]:
+    """Get all chat projects."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM chat_projects ORDER BY updated_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def update_chat_project(
+    project_id: int,
+    db_path: Optional[Path] = None,
+    **kwargs
+) -> None:
+    """Update a chat project with the given fields."""
+    if not kwargs:
+        return
+
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    # Always update updated_at timestamp
+    kwargs["updated_at"] = datetime.now().isoformat()
+
+    set_clause = ", ".join(f"{key} = ?" for key in kwargs.keys())
+    values = list(kwargs.values()) + [project_id]
+
+    cursor.execute(f"UPDATE chat_projects SET {set_clause} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+
+
+def delete_chat_project(
+    project_id: int,
+    db_path: Optional[Path] = None
+) -> None:
+    """Delete a chat project."""
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+
+    # Remove project reference from conversations
+    cursor.execute(
+        "UPDATE conversations SET chat_project_id = NULL WHERE chat_project_id = ?",
+        (project_id,)
+    )
+
+    # Delete the project
+    cursor.execute("DELETE FROM chat_projects WHERE id = ?", (project_id,))
+
+    conn.commit()
+    conn.close()

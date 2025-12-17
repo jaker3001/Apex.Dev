@@ -10,8 +10,17 @@ Usage:
 """
 
 import asyncio
+import logging
 import sys
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("apex_assistant")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,7 +41,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import init_database, init_apex_ops_database
-from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth
+from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts
 
 
 @asynccontextmanager
@@ -40,12 +49,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler - runs on startup and shutdown."""
     # Startup
     init_database()
-    print("Assistant database initialized")
+    logger.info("Assistant database initialized")
     init_apex_ops_database()
-    print("Operations database initialized")
+    logger.info("Operations database initialized")
     yield
     # Shutdown
-    print("Shutting down API server")
+    logger.info("Shutting down API server")
 
 
 app = FastAPI(
@@ -89,6 +98,8 @@ app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(mcp.router, prefix="/api", tags=["mcp"])
 app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 app.include_router(projects.router, prefix="/api", tags=["projects"])
+app.include_router(contacts.router, prefix="/api", tags=["contacts"])
+app.include_router(chat_projects.router, prefix="/api", tags=["chat-projects"])
 
 # Serve static frontend files in production (must be last to not override API routes)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

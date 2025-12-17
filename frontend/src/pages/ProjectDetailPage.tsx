@@ -11,10 +11,17 @@ import {
   NotesTab,
 } from '@/components/projects/tabs';
 import {
+  EditJobModal,
+  AddEstimateModal,
+  EstimateViewerModal,
+  RecordPaymentModal,
+  AddContactModal,
+} from '@/components/projects/modals';
+import {
   ArrowLeft,
   Phone,
   Mail,
-  Edit,
+  Pencil,
   Plus,
   ChevronDown,
   Droplets,
@@ -33,7 +40,9 @@ import {
   useProject,
   useUpdateProjectStatus,
   useCreateNote,
+  useUpdateEstimate,
   type ProjectContact,
+  type Estimate,
 } from '@/hooks/useProjects';
 import { useState } from 'react';
 
@@ -106,8 +115,15 @@ export function ProjectDetailPage() {
   const { data: project, isLoading, error } = useProject(projectId);
   const updateStatus = useUpdateProjectStatus();
   const createNote = useCreateNote();
+  const updateEstimate = useUpdateEstimate();
 
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddEstimateModal, setShowAddEstimateModal] = useState(false);
+  const [revisionEstimate, setRevisionEstimate] = useState<Estimate | null>(null);
+  const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
 
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: projectId, status: newStatus });
@@ -116,6 +132,17 @@ export function ProjectDetailPage() {
 
   const handleAddNote = (content: string, noteType?: string, subject?: string) => {
     createNote.mutate({ projectId, content, noteType, subject });
+  };
+
+  const handleApproveEstimate = (estimate: Estimate) => {
+    updateEstimate.mutate({
+      projectId,
+      estimateId: estimate.id,
+      data: {
+        status: 'approved',
+        approved_date: new Date().toISOString().split('T')[0],
+      },
+    });
   };
 
   if (isLoading) {
@@ -139,11 +166,11 @@ export function ProjectDetailPage() {
       <div className="p-6 max-w-6xl mx-auto space-y-4">
         {/* Back link */}
         <Link
-          to="/projects"
+          to="/jobs"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Projects
+          Back to Jobs
         </Link>
 
         {/* Header Card */}
@@ -183,8 +210,8 @@ export function ProjectDetailPage() {
                   </div>
                 )}
               </div>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
+                <Pencil className="h-4 w-4 mr-2" />
                 Edit
               </Button>
             </div>
@@ -292,15 +319,27 @@ export function ProjectDetailPage() {
             </TabsContent>
 
             <TabsContent value="documents" className="m-0">
-              <DocumentsTab projectId={projectId} />
+              <DocumentsTab projectId={projectId} media={project.media || []} />
             </TabsContent>
 
             <TabsContent value="estimates" className="m-0">
-              <EstimatesTab estimates={project.estimates || []} />
+              <EstimatesTab
+                estimates={project.estimates || []}
+                onAddEstimate={() => setShowAddEstimateModal(true)}
+                onAddRevision={(estimate) => {
+                  setRevisionEstimate(estimate);
+                  setShowAddEstimateModal(true);
+                }}
+                onViewEstimate={(estimate) => setViewingEstimate(estimate)}
+                onApproveEstimate={handleApproveEstimate}
+              />
             </TabsContent>
 
             <TabsContent value="payments" className="m-0">
-              <PaymentsTab payments={project.payments || []} />
+              <PaymentsTab
+                payments={project.payments || []}
+                onAddPayment={() => setShowRecordPaymentModal(true)}
+              />
             </TabsContent>
 
             <TabsContent value="tasks" className="m-0">
@@ -327,7 +366,7 @@ export function ProjectDetailPage() {
                 ({project.contacts?.length || 0})
               </span>
             </div>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => setShowAddContactModal(true)}>
               <Plus className="h-4 w-4 mr-1" />
               Add Contact
             </Button>
@@ -343,6 +382,46 @@ export function ProjectDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      {showEditModal && (
+        <EditJobModal job={project} onClose={() => setShowEditModal(false)} />
+      )}
+
+      {showAddEstimateModal && (
+        <AddEstimateModal
+          projectId={projectId}
+          existingEstimates={project.estimates || []}
+          revisionOf={revisionEstimate || undefined}
+          onClose={() => {
+            setShowAddEstimateModal(false);
+            setRevisionEstimate(null);
+          }}
+        />
+      )}
+
+      {showRecordPaymentModal && (
+        <RecordPaymentModal
+          projectId={projectId}
+          estimates={project.estimates || []}
+          onClose={() => setShowRecordPaymentModal(false)}
+        />
+      )}
+
+      {showAddContactModal && (
+        <AddContactModal
+          projectId={projectId}
+          existingContactIds={project.contacts?.map((c) => c.id) || []}
+          onClose={() => setShowAddContactModal(false)}
+        />
+      )}
+
+      {viewingEstimate && (
+        <EstimateViewerModal
+          estimate={viewingEstimate}
+          onClose={() => setViewingEstimate(null)}
+        />
+      )}
     </div>
   );
 }

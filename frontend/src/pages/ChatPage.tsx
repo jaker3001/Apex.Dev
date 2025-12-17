@@ -1,78 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useChat } from '@/hooks/useChat';
+import { useChatProjects } from '@/hooks/useChatProjects';
 import { ChatHeader, ChatInput, MessageList } from '@/components/chat';
-import { ProjectSelector, type Project } from '@/components/chat/ProjectSelector';
+import { ProjectSelector } from '@/components/chat/ProjectSelector';
 import { useChatContext } from '@/contexts/ChatContext';
 
-// Demo projects
-const DEMO_PROJECTS: Project[] = [
-  {
-    id: '1',
-    name: 'State Farm Claims',
-    description: 'All State Farm insurance claim communications',
-    instructions: 'When drafting emails, use a professional but friendly tone. Reference claim numbers when available.',
-    files: [],
-    createdAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    name: 'Water Damage Standards',
-    description: 'IICRC S500 research and documentation',
-    instructions: 'Focus on IICRC S500 standards. Cite specific sections when referencing drying standards.',
-    files: ['iicrc-s500-reference.pdf'],
-    createdAt: new Date('2024-02-01'),
-  },
-];
-
 export function ChatPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const conversationIdParam = searchParams.get('conversation');
+
+  // Chat mode and project from context
+  const { mode, setMode, selectedChatProjectId, setSelectedChatProjectId, notifyTitleUpdate } = useChatContext();
+
+  // Chat projects hook
+  const {
+    projects,
+    isLoading: projectsLoading,
+    createProject,
+    deleteProject,
+  } = useChatProjects();
+
   const {
     messages,
     isConnected,
     isStreaming,
+    sessionId,
+    conversationId,
     error,
     currentModel,
     sendMessage,
     updateModel,
+    updateChatProjectId,
     cancelStream,
     newConversation,
+    resumeConversation,
   } = useChat({
     onError: (err) => console.error('Chat error:', err),
     onModelSwitch: (from, to) => console.log(`[Chat] Model switched from ${from} to ${to}`),
+    onResume: (id, history) => console.log(`[Chat] Resumed conversation ${id} with ${history.length} messages`),
+    onTitleUpdate: notifyTitleUpdate,
+    chatProjectId: selectedChatProjectId,
   });
 
-  // Chat mode from context
-  const { mode, setMode } = useChatContext();
+  // Handle URL-based conversation resumption
+  useEffect(() => {
+    if (conversationIdParam) {
+      const targetId = parseInt(conversationIdParam, 10);
+      // Only resume if we're not already on this conversation
+      if (!isNaN(targetId) && targetId !== conversationId) {
+        resumeConversation(targetId);
+      }
+    }
+  }, [conversationIdParam, conversationId, resumeConversation]);
 
-  // Project state (for Chat Mode)
-  const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  // Sync chat project ID when selection changes
+  useEffect(() => {
+    updateChatProjectId(selectedChatProjectId);
+  }, [selectedChatProjectId, updateChatProjectId]);
+
+  // Project selector state
   const [showProjectSelector, setShowProjectSelector] = useState(false);
 
-  const currentProject = projects.find((p) => p.id === currentProjectId);
+  // Project context is now managed in sidebar
 
-  const handleCreateProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
-    const newProject: Project = {
-      ...projectData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    };
-    setProjects((prev) => [...prev, newProject]);
-    setCurrentProjectId(newProject.id);
-  };
-
-  const handleDeleteProject = (projectId: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    if (currentProjectId === projectId) {
-      setCurrentProjectId(null);
+  const handleCreateProject = async (projectData: { name: string; description?: string; instructions?: string; linked_job_number?: string }) => {
+    const newProject = await createProject(projectData);
+    if (newProject) {
+      setSelectedChatProjectId(newProject.id);
     }
   };
 
-  const handleModeChange = (newMode: 'task' | 'chat') => {
+  const handleDeleteProject = async (projectId: number) => {
+    const success = await deleteProject(projectId);
+    if (success && selectedChatProjectId === projectId) {
+      setSelectedChatProjectId(null);
+    }
+  };
+
+  const handleModeChange = (newMode: 'agent' | 'chat') => {
     setMode(newMode);
-    // Clear project when switching to task mode
-    if (newMode === 'task') {
-      setCurrentProjectId(null);
+    // Clear project when switching to agent mode
+    if (newMode === 'agent') {
+      setSelectedChatProjectId(null);
     }
+  };
+
+  // Handle new chat - clear URL param and start fresh
+  const handleNewChat = () => {
+    setSearchParams({});
+    newConversation();
   };
 
   return (
@@ -80,29 +97,8 @@ export function ChatPage() {
       {/* Header */}
       <ChatHeader
         isConnected={isConnected}
-        onNewChat={newConversation}
-        mode={mode}
-        onModeChange={handleModeChange}
-        model={currentModel}
-        onModelChange={updateModel}
-        currentProject={currentProject?.name || null}
-        onProjectSelect={() => setShowProjectSelector(true)}
+        onNewChat={handleNewChat}
       />
-
-      {/* Project context banner (Chat Mode with project selected) */}
-      {mode === 'chat' && currentProject && (
-        <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 text-sm">
-          <div className="max-w-4xl mx-auto flex items-center gap-2">
-            <span className="font-medium text-blue-700">Project:</span>
-            <span className="text-blue-600">{currentProject.name}</span>
-            {currentProject.instructions && (
-              <span className="text-blue-500 text-xs ml-2">
-                (Custom instructions active)
-              </span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Error banner */}
       {error && (
@@ -120,17 +116,23 @@ export function ChatPage() {
         onCancel={cancelStream}
         isStreaming={isStreaming}
         disabled={!isConnected}
+        sessionId={sessionId}
+        model={currentModel}
+        onModelChange={updateModel}
+        mode={mode}
+        onModeChange={handleModeChange}
       />
 
       {/* Project Selector Modal */}
       {showProjectSelector && (
         <ProjectSelector
           projects={projects}
-          currentProjectId={currentProjectId}
-          onSelect={setCurrentProjectId}
+          currentProjectId={selectedChatProjectId}
+          onSelect={setSelectedChatProjectId}
           onCreate={handleCreateProject}
           onDelete={handleDeleteProject}
           onClose={() => setShowProjectSelector(false)}
+          isLoading={projectsLoading}
         />
       )}
     </div>

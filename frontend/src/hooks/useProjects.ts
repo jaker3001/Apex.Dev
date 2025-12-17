@@ -417,7 +417,7 @@ async function createPayment(
 export function useCreatePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ projectId, data }: { projectId: number; data: Partial<Payment> }) =>
+    mutationFn: ({ projectId, data }: { projectId: number; data: { amount: number; payment_method?: string; payment_type?: string; check_number?: string; received_date?: string; deposited_date?: string; invoice_number?: string; estimate_id?: number; notes?: string; } }) =>
       createPayment(projectId, data),
     onSuccess: (_, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });

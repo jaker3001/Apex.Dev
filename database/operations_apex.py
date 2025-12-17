@@ -180,6 +180,24 @@ def get_contacts_by_organization(org_id: int) -> List[Dict[str, Any]]:
     return _rows_to_list(rows)
 
 
+def get_all_contacts(limit: int = 500) -> List[Dict[str, Any]]:
+    """Get all active contacts."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT * FROM v_contacts
+        WHERE is_active = 1
+        ORDER BY full_name
+        LIMIT ?
+        """,
+        (limit,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
 def search_contacts(query: str, limit: int = 50) -> List[Dict[str, Any]]:
     """Search contacts by name or email."""
     conn = get_ops_connection()
@@ -333,6 +351,10 @@ def create_project(
     city: Optional[str] = None,
     state: Optional[str] = None,
     zip_code: Optional[str] = None,
+    year_built: Optional[int] = None,
+    structure_type: Optional[str] = None,
+    square_footage: Optional[int] = None,
+    num_stories: Optional[int] = None,
     damage_source: Optional[str] = None,
     damage_category: Optional[str] = None,
     damage_class: Optional[str] = None,
@@ -355,14 +377,16 @@ def create_project(
         """
         INSERT INTO projects (
             job_number, client_id, insurance_org_id, status, address, city, state, zip,
+            year_built, structure_type, square_footage, num_stories,
             damage_source, damage_category, damage_class, date_of_loss,
             date_contacted, inspection_date, work_auth_signed_date, start_date,
             cos_date, completion_date, claim_number, policy_number, deductible, notes
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             job_number, client_id, insurance_org_id, status, address, city, state, zip_code,
+            year_built, structure_type, square_footage, num_stories,
             damage_source, damage_category, damage_class, date_of_loss,
             date_contacted or _get_timestamp(), inspection_date, work_auth_signed_date,
             start_date, cos_date, completion_date, claim_number, policy_number, deductible, notes
@@ -523,6 +547,20 @@ def get_project_full(project_id: int) -> Optional[Dict[str, Any]]:
     payments = cursor.fetchall()
     project_dict['payments'] = _rows_to_list(payments)
 
+    # Get media files
+    cursor.execute(
+        """
+        SELECT m.*, c.first_name || ' ' || c.last_name as uploaded_by_name
+        FROM media m
+        LEFT JOIN contacts c ON m.uploaded_by = c.id
+        WHERE m.project_id = ?
+        ORDER BY m.uploaded_at DESC
+        """,
+        (project_id,)
+    )
+    media = cursor.fetchall()
+    project_dict['media'] = _rows_to_list(media)
+
     conn.close()
     return project_dict
 
@@ -590,6 +628,7 @@ def assign_contact_to_project(
     project_id: int,
     contact_id: int,
     role_on_project: Optional[str] = None,
+    assigned_date: Optional[str] = None,
     notes: Optional[str] = None,
 ) -> int:
     """Assign a contact to a project."""
@@ -600,7 +639,7 @@ def assign_contact_to_project(
         INSERT INTO project_contacts (project_id, contact_id, role_on_project, assigned_date, notes)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (project_id, contact_id, role_on_project, _get_timestamp(), notes)
+        (project_id, contact_id, role_on_project, assigned_date or _get_timestamp(), notes)
     )
     pc_id = cursor.lastrowid
     conn.commit()
@@ -730,18 +769,30 @@ def create_estimate(
     estimate_type: Optional[str] = None,
     version: int = 1,
     status: str = "draft",
+    submitted_date: Optional[str] = None,
+    approved_date: Optional[str] = None,
     xactimate_file_path: Optional[str] = None,
     notes: Optional[str] = None,
+    original_amount: Optional[float] = None,
 ) -> int:
-    """Create a new estimate for a project."""
+    """Create a new estimate for a project.
+
+    For initial estimates (version 1), original_amount should equal amount.
+    For revisions, original_amount carries forward from the initial submission.
+    """
     conn = get_ops_connection()
     cursor = conn.cursor()
+
+    # If original_amount not provided and this is version 1, use the amount
+    if original_amount is None and version == 1:
+        original_amount = amount
+
     cursor.execute(
         """
-        INSERT INTO estimates (project_id, version, estimate_type, amount, status, xactimate_file_path, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO estimates (project_id, version, estimate_type, amount, original_amount, status, submitted_date, approved_date, xactimate_file_path, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (project_id, version, estimate_type, amount, status, xactimate_file_path, notes)
+        (project_id, version, estimate_type, amount, original_amount, status, submitted_date, approved_date, xactimate_file_path, notes)
     )
     estimate_id = cursor.lastrowid
     conn.commit()
@@ -861,6 +912,101 @@ def update_payment(payment_id: int, **kwargs) -> bool:
 
     query = f"UPDATE payments SET {', '.join(set_parts)} WHERE id = ?"
     cursor.execute(query, values)
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+# =============================================================================
+# MEDIA OPERATIONS
+# =============================================================================
+
+def create_media(
+    project_id: int,
+    file_name: str,
+    file_path: str,
+    file_type: Optional[str] = None,
+    file_size: Optional[int] = None,
+    caption: Optional[str] = None,
+    uploaded_by: Optional[int] = None,
+) -> int:
+    """Create a new media record for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO media (project_id, file_name, file_path, file_type, file_size, caption, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (project_id, file_name, file_path, file_type, file_size, caption, uploaded_by)
+    )
+    media_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return media_id
+
+
+def get_media(media_id: int) -> Optional[Dict[str, Any]]:
+    """Get a media record by ID."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM media WHERE id = ?", (media_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_dict(row)
+
+
+def get_media_for_project(project_id: int, file_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get all media for a project, optionally filtered by file type."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT m.*, c.first_name || ' ' || c.last_name as uploaded_by_name
+        FROM media m
+        LEFT JOIN contacts c ON m.uploaded_by = c.id
+        WHERE m.project_id = ?
+    """
+    params = [project_id]
+
+    if file_type:
+        query += " AND m.file_type = ?"
+        params.append(file_type)
+
+    query += " ORDER BY m.uploaded_at DESC"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
+def update_media(media_id: int, **kwargs) -> bool:
+    """Update a media record."""
+    if not kwargs:
+        return False
+
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    set_parts = [f"{key} = ?" for key in kwargs.keys()]
+    values = list(kwargs.values())
+    values.append(media_id)
+
+    query = f"UPDATE media SET {', '.join(set_parts)} WHERE id = ?"
+    cursor.execute(query, values)
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def delete_media(media_id: int) -> bool:
+    """Delete a media record (hard delete)."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM media WHERE id = ?", (media_id,))
     conn.commit()
     affected = cursor.rowcount
     conn.close()

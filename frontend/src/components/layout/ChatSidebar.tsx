@@ -1,14 +1,32 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, Zap, Clock, PanelLeftClose, PanelLeftOpen, Bot, MessageSquare, ChevronDown, ChevronRight, X } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Clock,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Bot,
+  MessageSquare,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Plug,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConversations, type ConversationPreview } from '@/hooks/useConversations';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useChatContext } from '@/contexts/ChatContext';
-import { useAgents, type Agent } from '@/hooks/useAgents';
+import { useAgents } from '@/hooks/useAgents';
+import { useChatProjects } from '@/hooks/useChatProjects';
+import { useMCP } from '@/hooks/useMCP';
+import { useSkills } from '@/hooks/useSkills';
+import { ProjectModal } from '@/components/chat/ProjectModal';
 
-type PopoverType = 'agents' | 'history' | null;
+// Re-export type for external use
+export type { ConversationPreview };
 
 interface ConversationItemProps {
   conversation: ConversationPreview;
@@ -19,7 +37,6 @@ interface ConversationItemProps {
 
 function ConversationItem({ conversation, onSelect, onDelete, isActive }: ConversationItemProps) {
   const title = conversation.title || 'New Conversation';
-  const preview = conversation.preview || 'No messages yet';
   const timestamp = new Date(conversation.updatedAt);
   const isToday = new Date().toDateString() === timestamp.toDateString();
   const timeDisplay = isToday
@@ -29,59 +46,23 @@ function ConversationItem({ conversation, onSelect, onDelete, isActive }: Conver
   return (
     <div
       className={cn(
-        'group flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors',
-        isActive
-          ? 'bg-primary/10 border border-primary/20'
-          : 'hover:bg-accent'
+        'group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors',
+        isActive ? 'bg-primary/10' : 'hover:bg-muted'
       )}
       onClick={() => onSelect(conversation.id)}
     >
-      <div className="flex-1 min-w-0">
-        {/* Title */}
-        <p className="text-sm font-medium truncate text-foreground">
-          {title}
-        </p>
-
-        {/* Preview */}
-        <p className="text-xs text-muted-foreground truncate mt-0.5">
-          {preview}
-        </p>
-
-        {/* Meta info */}
-        <div className="flex items-center gap-2 mt-1">
-          {/* Model badge */}
-          {conversation.lastModelName && (
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Zap className="h-3 w-3 text-yellow-500" />
-              {conversation.lastModelName}
-            </span>
-          )}
-
-          {/* Timestamp */}
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {timeDisplay}
-          </span>
-
-          {/* Message count */}
-          {conversation.messageCount > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {conversation.messageCount} msg{conversation.messageCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Delete button (appears on hover) */}
+      <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <span className="text-sm truncate flex-1">{title}</span>
+      <span className="text-xs text-muted-foreground">{timeDisplay}</span>
       <button
-        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-opacity"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-opacity"
         onClick={(e) => {
           e.stopPropagation();
           onDelete(conversation.id);
         }}
-        title="Delete conversation"
+        title="Delete"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 className="h-3.5 w-3.5" />
       </button>
     </div>
   );
@@ -95,41 +76,55 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversation }: ChatSidebarProps) {
   const navigate = useNavigate();
-  const { conversations, isLoading, deleteConversation, fetchConversations } = useConversations({
+  const { conversations, isLoading, deleteConversation, fetchConversations, updateConversationTitle } = useConversations({
     limit: 20,
     includeInactive: false,
   });
 
-  // Sidebar collapse state (persisted)
+  // Sidebar collapse state
   const [isCollapsed, setIsCollapsed] = useLocalStorage('chatSidebar.collapsed', false);
 
-  // History section collapsed state (persisted)
+  // Section collapse states
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useLocalStorage('chatSidebar.historyCollapsed', false);
-
-  // Agents section collapsed state (persisted)
   const [isAgentsCollapsed, setIsAgentsCollapsed] = useLocalStorage('chatSidebar.agentsCollapsed', false);
+  const [isProjectsCollapsed, setIsProjectsCollapsed] = useLocalStorage('chatSidebar.projectsCollapsed', false);
+  const [isMCPCollapsed, setIsMCPCollapsed] = useLocalStorage('chatSidebar.mcpCollapsed', false);
+  const [isSkillsCollapsed, setIsSkillsCollapsed] = useLocalStorage('chatSidebar.skillsCollapsed', false);
 
-  // Fetch agents from API
+  // Agents from API
   const { agents, isLoading: isLoadingAgents } = useAgents({ activeOnly: true });
 
-  // Mode and selected agent from context
-  const { mode, setMode, selectedAgentId, setSelectedAgentId } = useChatContext();
+  // MCP servers from API
+  const { servers: mcpServers, isLoading: isLoadingMCP, toggleServer } = useMCP();
 
-  const toggleMode = () => {
-    setMode(mode === 'task' ? 'chat' : 'task');
-  };
+  // Skills from API
+  const { skills, isLoading: isLoadingSkills } = useSkills();
+
+  // Projects from API
+  const { projects, isLoading: isLoadingProjects, createProject } = useChatProjects();
+
+  // Project modal state
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+
+  // Mode and selection from context
+  const { mode, selectedAgentId, setSelectedAgentId, selectedChatProjectId, setSelectedChatProjectId, onTitleUpdate } = useChatContext();
+
+  // Subscribe to title updates
+  useEffect(() => {
+    const unsubscribe = onTitleUpdate((conversationId, title) => {
+      updateConversationTitle(conversationId, title);
+    });
+    return unsubscribe;
+  }, [onTitleUpdate, updateConversationTitle]);
 
   const handleNewChat = () => {
-    if (onNewChat) {
-      onNewChat();
-    }
+    onNewChat?.();
     navigate('/');
   };
 
   const handleSelectConversation = (id: number) => {
-    if (onSelectConversation) {
-      onSelectConversation(id);
-    }
+    onSelectConversation?.(id);
     navigate(`/?conversation=${id}`);
   };
 
@@ -140,382 +135,334 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
     }
   };
 
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
-
-  // Popover state for collapsed mode
-  const [activePopover, setActivePopover] = useState<PopoverType>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Close popover when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        setActivePopover(null);
+  const handleCreateProject = async (data: {
+    name: string;
+    description?: string;
+    instructions?: string;
+    knowledge_path?: string;
+    linked_job_number?: string;
+  }) => {
+    setIsCreatingProject(true);
+    try {
+      const newProject = await createProject(data);
+      if (newProject) {
+        setSelectedChatProjectId(newProject.id);
       }
+    } finally {
+      setIsCreatingProject(false);
     }
-    if (activePopover) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [activePopover]);
-
-  const handleAgentSelectFromPopover = (agentId: number) => {
-    setSelectedAgentId(selectedAgentId === agentId ? null : agentId);
-    setActivePopover(null);
   };
 
-  const handleConversationSelectFromPopover = (id: number) => {
-    handleSelectConversation(id);
-    setActivePopover(null);
-  };
-
-  // Collapsed view - mini icon strip
+  // Collapsed view
   if (isCollapsed) {
     return (
-      <aside
-        className="w-12 h-full bg-card border-r flex flex-col items-center py-3 gap-2 transition-all duration-200 relative"
-        data-testid="chat-sidebar"
-        data-collapsed="true"
-      >
-        {/* Expand toggle */}
+      <aside className="w-12 h-full bg-background border-r flex flex-col items-center py-3 gap-1">
         <button
-          onClick={toggleCollapse}
-          className="p-2 rounded-lg hover:bg-accent transition-colors"
+          onClick={() => setIsCollapsed(false)}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
           title="Expand sidebar"
-          data-testid="sidebar-toggle"
         >
           <PanelLeftOpen className="h-5 w-5" />
         </button>
 
-        {/* Mode toggle */}
-        <button
-          onClick={toggleMode}
-          className={cn(
-            "p-2 rounded-lg transition-colors",
-            mode === 'task' ? "bg-primary/10 text-primary" : "bg-blue-500/10 text-blue-500"
-          )}
-          title={mode === 'task' ? 'Task Mode (click to switch)' : 'Chat Mode (click to switch)'}
-          data-testid="mode-toggle-icon"
-        >
-          {mode === 'task' ? <Bot className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
-        </button>
-
-        {/* New Chat */}
         <button
           onClick={handleNewChat}
-          className="p-2 rounded-lg hover:bg-accent transition-colors"
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
           title="New Chat"
-          data-testid="new-chat-icon"
         >
           <Plus className="h-5 w-5" />
         </button>
 
-        {/* Agents icon with popover */}
-        <div className="relative">
-          <button
-            onClick={() => setActivePopover(activePopover === 'agents' ? null : 'agents')}
-            className={cn(
-              "p-2 rounded-lg transition-colors",
-              activePopover === 'agents' ? "bg-accent" : "hover:bg-accent"
-            )}
-            title="Agents"
-            data-testid="agents-icon"
-          >
-            <Bot className="h-5 w-5" />
-            {agents.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                {agents.length}
-              </span>
-            )}
-          </button>
+        <div className="flex-1" />
 
-          {/* Agents Popover */}
-          {activePopover === 'agents' && (
-            <div
-              ref={popoverRef}
-              className="absolute left-full ml-2 top-0 bg-card border rounded-lg shadow-lg z-50 w-56"
-              data-testid="agents-popover"
-            >
-              <div className="p-2 border-b flex items-center justify-between">
-                <span className="text-sm font-medium">Agents</span>
-                <button
-                  onClick={() => setActivePopover(null)}
-                  className="p-1 rounded hover:bg-accent"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="max-h-64 overflow-y-auto p-1">
-                {isLoadingAgents ? (
-                  <p className="p-2 text-xs text-muted-foreground">Loading...</p>
-                ) : agents.length === 0 ? (
-                  <p className="p-2 text-xs text-muted-foreground">No agents configured</p>
-                ) : (
-                  agents.map((agent) => (
-                    <button
-                      key={agent.id}
-                      onClick={() => handleAgentSelectFromPopover(agent.id)}
-                      className={cn(
-                        "w-full flex items-center gap-2 p-2 rounded text-left transition-colors",
-                        selectedAgentId === agent.id
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-accent"
-                      )}
-                      data-testid={`popover-agent-${agent.id}`}
-                    >
-                      <Bot className="h-4 w-4 flex-shrink-0" />
-                      <span className="text-sm truncate flex-1">{agent.name}</span>
-                      {agent.times_used > 0 && (
-                        <span className="text-xs text-muted-foreground">{agent.times_used}</span>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
+        <button
+          className="p-2 rounded-lg hover:bg-muted transition-colors relative"
+          title="History"
+        >
+          <Clock className="h-5 w-5" />
+          {conversations.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-muted-foreground text-background text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+              {conversations.length > 9 ? '9+' : conversations.length}
+            </span>
           )}
-        </div>
-
-        {/* History icon with popover */}
-        <div className="relative mt-auto">
-          <button
-            onClick={() => setActivePopover(activePopover === 'history' ? null : 'history')}
-            className={cn(
-              "p-2 rounded-lg transition-colors",
-              activePopover === 'history' ? "bg-accent" : "hover:bg-accent"
-            )}
-            title="History"
-            data-testid="history-icon"
-          >
-            <Clock className="h-5 w-5" />
-            {conversations.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-muted-foreground text-background text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                {conversations.length > 9 ? '9+' : conversations.length}
-              </span>
-            )}
-          </button>
-
-          {/* History Popover */}
-          {activePopover === 'history' && (
-            <div
-              ref={popoverRef}
-              className="absolute left-full ml-2 bottom-0 bg-card border rounded-lg shadow-lg z-50 w-72"
-              data-testid="history-popover"
-            >
-              <div className="p-2 border-b flex items-center justify-between">
-                <span className="text-sm font-medium">Recent Conversations</span>
-                <button
-                  onClick={() => setActivePopover(null)}
-                  className="p-1 rounded hover:bg-accent"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="max-h-80 overflow-y-auto p-1">
-                {isLoading ? (
-                  <p className="p-2 text-xs text-muted-foreground">Loading...</p>
-                ) : conversations.length === 0 ? (
-                  <p className="p-2 text-xs text-muted-foreground">No conversations yet</p>
-                ) : (
-                  conversations.slice(0, 10).map((conversation) => {
-                    const title = conversation.title || 'New Conversation';
-                    const timestamp = new Date(conversation.updatedAt);
-                    const isToday = new Date().toDateString() === timestamp.toDateString();
-                    const timeDisplay = isToday
-                      ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                      : timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' });
-
-                    return (
-                      <button
-                        key={conversation.id}
-                        onClick={() => handleConversationSelectFromPopover(conversation.id)}
-                        className={cn(
-                          "w-full flex items-center gap-2 p-2 rounded text-left transition-colors",
-                          currentConversationId === conversation.id
-                            ? "bg-primary/10 text-primary"
-                            : "hover:bg-accent"
-                        )}
-                        data-testid={`popover-conversation-${conversation.id}`}
-                      >
-                        <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate">{title}</p>
-                          <p className="text-xs text-muted-foreground">{timeDisplay}</p>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        </button>
       </aside>
     );
   }
 
   // Expanded view
   return (
-    <aside
-      className="w-64 h-full bg-card border-r flex flex-col transition-all duration-200"
-      data-testid="chat-sidebar"
-      data-collapsed="false"
-    >
-      {/* Toggle + Mode + New Chat */}
-      <div className="p-3 border-b">
-        {/* Header row with toggle */}
-        <div className="flex items-center gap-2 mb-3">
+    <aside className="w-64 h-full bg-background border-r flex flex-col">
+      {/* Header */}
+      <div className="p-3 border-b border-border/50">
+        <div className="flex items-center justify-between mb-3">
           <button
-            onClick={toggleCollapse}
-            className="p-2 rounded-lg hover:bg-accent transition-colors"
+            onClick={() => setIsCollapsed(true)}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
             title="Collapse sidebar"
-            data-testid="sidebar-toggle"
           >
-            <PanelLeftClose className="h-5 w-5" />
+            <PanelLeftClose className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Mode Toggle */}
-        <button
-          onClick={toggleMode}
-          className={cn(
-            "w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors mb-3",
-            mode === 'task'
-              ? "bg-primary/5 border-primary/20 text-primary"
-              : "bg-blue-500/5 border-blue-500/20 text-blue-500"
-          )}
-          data-testid="mode-toggle"
-        >
-          {mode === 'task' ? (
-            <>
-              <Bot className="h-4 w-4" />
-              <span className="font-medium">Task Mode</span>
-            </>
-          ) : (
-            <>
-              <MessageSquare className="h-4 w-4" />
-              <span className="font-medium">Chat Mode</span>
-            </>
-          )}
-        </button>
-
-        {/* New Chat Button */}
         <Button
           className="w-full justify-start gap-2"
           variant="outline"
+          size="sm"
           onClick={handleNewChat}
-          data-testid="new-chat-button"
         >
           <Plus className="h-4 w-4" />
           New Chat
         </Button>
       </div>
 
-      {/* Agents Section */}
-      <div className="p-3 border-b">
-        {/* Collapsible Agents Header */}
-        <button
-          onClick={() => setIsAgentsCollapsed(!isAgentsCollapsed)}
-          className="w-full flex items-center gap-2 px-2 mb-2 hover:bg-accent rounded transition-colors"
-          data-testid="agents-toggle"
-        >
-          {isAgentsCollapsed ? (
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-          )}
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Agents
-          </span>
-          {agents.length > 0 && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {agents.length}
-            </span>
-          )}
-        </button>
+      {/* Mode-specific content */}
+      <div className="flex-1 overflow-y-auto">
+        {mode === 'chat' ? (
+          // Chat Mode: Projects
+          <div className="p-3 border-b border-border/50">
+            <button
+              onClick={() => setIsProjectsCollapsed(!isProjectsCollapsed)}
+              className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
+            >
+              {isProjectsCollapsed ? (
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              )}
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Projects
+              </span>
+              {projects.length > 0 && (
+                <span className="text-xs text-muted-foreground ml-auto">{projects.length}</span>
+              )}
+            </button>
 
-        {/* Agent List (collapsible) */}
-        {!isAgentsCollapsed && (
-          <div className="space-y-1" data-testid="agents-list">
-            {isLoadingAgents ? (
-              <p className="px-2 text-xs text-muted-foreground">Loading...</p>
-            ) : agents.length === 0 ? (
-              <p className="px-2 text-xs text-muted-foreground">No agents configured</p>
-            ) : (
-              agents.map((agent) => (
+            {!isProjectsCollapsed && (
+              <div className="space-y-0.5">
+                {isLoadingProjects ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
+                ) : projects.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">No projects yet</p>
+                ) : (
+                  projects.map((project) => (
+                    <button
+                      key={project.id}
+                      onClick={() => setSelectedChatProjectId(selectedChatProjectId === project.id ? null : project.id)}
+                      className={cn(
+                        'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors',
+                        selectedChatProjectId === project.id ? 'bg-primary/10' : 'hover:bg-muted'
+                      )}
+                    >
+                      <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate">{project.name}</span>
+                    </button>
+                  ))
+                )}
                 <button
-                  key={agent.id}
-                  onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}
-                  className={cn(
-                    "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors",
-                    selectedAgentId === agent.id
-                      ? "bg-primary/10 border border-primary/20"
-                      : "hover:bg-accent"
-                  )}
-                  data-testid={`agent-item-${agent.id}`}
+                  onClick={() => setShowProjectModal(true)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{agent.name}</p>
-                  </div>
-                  {agent.times_used > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {agent.times_used}
-                    </span>
-                  )}
+                  <Plus className="h-4 w-4" />
+                  <span className="text-sm">New Project</span>
                 </button>
-              ))
+              </div>
             )}
           </div>
+        ) : (
+          // Agent Mode: Agents, MCPs, Skills
+          <>
+            {/* Agents Section */}
+            <div className="p-3 border-b border-border/50">
+              <button
+                onClick={() => setIsAgentsCollapsed(!isAgentsCollapsed)}
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
+              >
+                {isAgentsCollapsed ? (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                )}
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Agents
+                </span>
+                {agents.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-auto">{agents.length}</span>
+                )}
+              </button>
+
+              {!isAgentsCollapsed && (
+                <div className="space-y-0.5">
+                  {isLoadingAgents ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
+                  ) : agents.length === 0 ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No agents configured</p>
+                  ) : (
+                    agents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}
+                        className={cn(
+                          'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors',
+                          selectedAgentId === agent.id ? 'bg-primary/10' : 'hover:bg-muted'
+                        )}
+                      >
+                        <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate flex-1">{agent.name}</span>
+                        {agent.times_used > 0 && (
+                          <span className="text-xs text-muted-foreground">{agent.times_used}</span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* MCP Servers Section */}
+            <div className="p-3 border-b border-border/50">
+              <button
+                onClick={() => setIsMCPCollapsed(!isMCPCollapsed)}
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
+              >
+                {isMCPCollapsed ? (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                )}
+                <Plug className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  MCP Servers
+                </span>
+                {mcpServers.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-auto">{mcpServers.length}</span>
+                )}
+              </button>
+
+              {!isMCPCollapsed && (
+                <div className="space-y-0.5">
+                  {isLoadingMCP ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
+                  ) : mcpServers.length === 0 ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No MCP servers configured</p>
+                  ) : (
+                    mcpServers.map((server) => (
+                      <button
+                        key={server.id}
+                        onClick={() => toggleServer(server.name)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted transition-colors"
+                        title={`Click to ${server.status === 'active' ? 'disable' : 'enable'}`}
+                      >
+                        <span
+                          className={cn(
+                            'h-2 w-2 rounded-full flex-shrink-0',
+                            server.status === 'active' ? 'bg-green-500' : 'bg-muted-foreground/30'
+                          )}
+                        />
+                        <span className="text-sm truncate flex-1">{server.name}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{server.server_type}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Skills Section */}
+            <div className="p-3 border-b border-border/50">
+              <button
+                onClick={() => setIsSkillsCollapsed(!isSkillsCollapsed)}
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
+              >
+                {isSkillsCollapsed ? (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                )}
+                <Sparkles className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Skills
+                </span>
+                {skills.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-auto">{skills.length}</span>
+                )}
+              </button>
+
+              {!isSkillsCollapsed && (
+                <div className="space-y-0.5">
+                  {isLoadingSkills ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
+                  ) : skills.length === 0 ? (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No skills configured</p>
+                  ) : (
+                    skills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted transition-colors"
+                      >
+                        <Sparkles className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate flex-1">{skill.name}</span>
+                        {skill.times_used > 0 && (
+                          <span className="text-xs text-muted-foreground">{skill.times_used}</span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         )}
-      </div>
 
-      {/* Conversation History */}
-      <div className="flex-1 p-3 overflow-y-auto">
-        {/* Collapsible History Header */}
-        <button
-          onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
-          className="w-full flex items-center gap-2 px-2 mb-2 hover:bg-accent rounded transition-colors"
-          data-testid="history-toggle"
-        >
-          {isHistoryCollapsed ? (
-            <ChevronRight className="h-3 w-3 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
-          )}
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            History
-          </span>
-          {conversations.length > 0 && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {conversations.length}
-            </span>
-          )}
-        </button>
-
-        {/* Conversation List (collapsible) */}
-        {!isHistoryCollapsed && (
-          <div className="space-y-1" data-testid="conversation-list">
-            {isLoading ? (
-              <p className="px-2 text-xs text-muted-foreground">Loading...</p>
-            ) : conversations.length === 0 ? (
-              <p className="px-2 text-xs text-muted-foreground">No conversations yet</p>
+        {/* History Section (always shown) */}
+        <div className="p-3">
+          <button
+            onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
+            className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
+          >
+            {isHistoryCollapsed ? (
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
             ) : (
-              conversations.map((conversation) => (
-                <ConversationItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  onSelect={handleSelectConversation}
-                  onDelete={handleDeleteConversation}
-                  isActive={currentConversationId === conversation.id}
-                />
-              ))
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
             )}
-          </div>
-        )}
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Recent
+            </span>
+            {conversations.length > 0 && (
+              <span className="text-xs text-muted-foreground ml-auto">{conversations.length}</span>
+            )}
+          </button>
+
+          {!isHistoryCollapsed && (
+            <div className="space-y-0.5">
+              {isLoading ? (
+                <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
+              ) : conversations.length === 0 ? (
+                <p className="px-2 py-1 text-xs text-muted-foreground">No conversations yet</p>
+              ) : (
+                conversations.map((conversation) => (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    onSelect={handleSelectConversation}
+                    onDelete={handleDeleteConversation}
+                    isActive={currentConversationId === conversation.id}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Project Modal */}
+      {showProjectModal && (
+        <ProjectModal
+          onSave={handleCreateProject}
+          onClose={() => setShowProjectModal(false)}
+          isLoading={isCreatingProject}
+        />
+      )}
     </aside>
   );
 }

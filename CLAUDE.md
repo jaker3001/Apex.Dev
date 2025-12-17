@@ -163,7 +163,7 @@ Edit `config/system_prompt.py` to modify assistant behavior. The `APEX_SYSTEM_PR
 | Route | Sidebar | Purpose |
 |-------|---------|---------|
 | `/` | ChatSidebar | Conversation history |
-| `/projects/*` | ProjectsSidebar | Job search/filters |
+| `/jobs/*` | JobsSidebar | Job search/filters |
 | `/settings/*` | SettingsSidebar | Admin features |
 
 Settings sub-routes: `/settings/agents`, `/settings/skills`, `/settings/mcp`, `/settings/analytics`, `/settings/learn`
@@ -184,3 +184,81 @@ This assistant is tailored for property damage restoration:
 - **Use Pydantic** for API request/response validation
 - **Handle loading/error states** in frontend async operations
 - **Update CLAUDE.md** if architecture changes
+
+## Future Features
+
+### Dashboard
+
+A central employee hub for daily workflow management. Intended as the landing page for field technicians and office staff.
+
+**Planned Components:**
+- **Today's Tasks** - Tasks assigned to the current user, filtered by due date
+- **Upcoming Deadlines** - Jobs with approaching COS dates, estimate deadlines, etc.
+- **Active Jobs Summary** - Quick counts and status of jobs by category
+- **Quick Actions** - Common workflows like "Clock in", "Start drying log", "Upload photos"
+- **Notifications** - Unread items requiring attention
+
+### Compliance Tasks (Tasks Tab)
+
+A sophisticated task management system for restoration work, separate from simple to-do lists. This system enforces IICRC compliance and tracks accountability.
+
+**Core Concepts:**
+
+1. **Task Templates by Job Type**
+   - Water mitigation jobs auto-populate with required tasks (initial inspection, moisture mapping, equipment placement, daily monitoring, etc.)
+   - Fire/smoke jobs have different templates
+   - Templates are customizable per job type in settings
+
+2. **Time Tracking**
+   - Built-in timers for each task
+   - Tracks how long each task actually takes vs. estimated time
+   - Data feeds into job costing and future estimates
+
+3. **Task Dependencies**
+   - Some tasks can't start until prerequisites are complete
+   - Example: "Final moisture readings" can't be done until "Equipment removal" is complete
+   - Visual dependency chain in the UI
+
+4. **Accountability Tracking**
+   - Each task logs: who completed it, when, and any notes
+   - Required for IICRC documentation
+   - Creates audit trail for insurance disputes
+
+5. **Compliance Requirements**
+   - Certain tasks are marked as "required" for job completion
+   - Job can't be marked "complete" until all required tasks are done
+   - Tied to IICRC S500/S520 standards where applicable
+
+**Database Schema (Proposed):**
+```sql
+-- Task templates (admin-defined)
+CREATE TABLE task_templates (
+    id INTEGER PRIMARY KEY,
+    job_type TEXT,              -- 'water_mitigation', 'fire', 'mold', etc.
+    name TEXT NOT NULL,
+    description TEXT,
+    estimated_minutes INTEGER,
+    is_required BOOLEAN DEFAULT 0,
+    sort_order INTEGER,
+    depends_on_template_id INTEGER  -- FK to another template
+);
+
+-- Job tasks (instances from templates)
+CREATE TABLE job_tasks (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL,
+    template_id INTEGER,
+    name TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',  -- pending, in_progress, completed, skipped
+    assigned_to INTEGER,            -- FK to contacts (technician)
+    started_at DATETIME,
+    completed_at DATETIME,
+    completed_by INTEGER,
+    actual_minutes INTEGER,
+    notes TEXT,
+    depends_on_task_id INTEGER,     -- FK to another job_task
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+```
+
+**Implementation Priority:** This is a future phase, not part of the current Jobs section finalization.

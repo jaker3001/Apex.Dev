@@ -16,6 +16,7 @@ import {
   groupProjectsByStatus,
   type Project,
 } from '@/hooks/useProjects';
+import { NewJobModal } from '@/components/projects/modals';
 
 // Status display order and colors
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -55,7 +56,7 @@ function formatDate(dateStr?: string): string {
 function ProjectCard({ project }: { project: Project }) {
   return (
     <Link
-      to={`/projects/${project.id}`}
+      to={`/jobs/${project.id}`}
       className="block border rounded-lg p-4 hover:border-primary/50 hover:bg-muted/30 transition-colors"
     >
       <div className="flex items-start justify-between">
@@ -108,7 +109,7 @@ function StatusSection({
         </span>
       </div>
       {projects.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">No {config.label.toLowerCase()} projects</p>
+        <p className="text-sm text-muted-foreground italic">No {config.label.toLowerCase()} jobs</p>
       ) : (
         <div className="space-y-2">
           {projects.map((project) => (
@@ -140,6 +141,7 @@ function StatCard({
 
 export function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNewJobModal, setShowNewJobModal] = useState(false);
   const { data: projectsData, isLoading, error } = useProjects();
   const { data: stats } = useProjectStats();
 
@@ -172,7 +174,7 @@ export function ProjectsPage() {
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading projects...</p>
+        <p className="text-muted-foreground">Loading jobs...</p>
       </div>
     );
   }
@@ -180,7 +182,7 @@ export function ProjectsPage() {
   if (error) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-destructive">Error loading projects: {(error as Error).message}</p>
+        <p className="text-destructive">Error loading jobs: {(error as Error).message}</p>
       </div>
     );
   }
@@ -191,12 +193,12 @@ export function ProjectsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold">Projects</h1>
+            <h1 className="text-2xl font-bold">Jobs</h1>
             <p className="text-muted-foreground">Manage your restoration jobs</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowNewJobModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New Project
+            New Job
           </Button>
         </div>
 
@@ -229,7 +231,7 @@ export function ProjectsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search projects by job number, client, address, or claim..."
+            placeholder="Search jobs by job number, client, address, or claim..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,6 +247,11 @@ export function ProjectsPage() {
           />
         ))}
       </div>
+
+      {/* New Job Modal */}
+      {showNewJobModal && (
+        <NewJobModal onClose={() => setShowNewJobModal(false)} />
+      )}
     </div>
   );
 }

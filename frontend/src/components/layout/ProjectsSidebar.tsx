@@ -37,7 +37,7 @@ interface ProjectItemProps {
 function ProjectItem({ project, isActive }: ProjectItemProps) {
   return (
     <Link
-      to={`/projects/${project.id}`}
+      to={`/jobs/${project.id}`}
       className={cn(
         'block p-2 rounded-lg transition-colors',
         isActive
@@ -89,15 +89,15 @@ export function ProjectsSidebar() {
 
   return (
     <aside className="w-64 h-full bg-card border-r flex flex-col">
-      {/* Header with New Project button */}
+      {/* Header with New Job button */}
       <div className="p-3 border-b">
         <Button
           className="w-full justify-start gap-2"
           variant="outline"
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/jobs')}
         >
           <Plus className="h-4 w-4" />
-          New Project
+          New Job
         </Button>
       </div>
 
@@ -107,7 +107,7 @@ export function ProjectsSidebar() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search projects..."
+            placeholder="Search jobs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -138,16 +138,16 @@ export function ProjectsSidebar() {
         </div>
       </div>
 
-      {/* Project List */}
+      {/* Job List */}
       <div className="flex-1 p-3 overflow-y-auto">
         <p className="px-1 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Projects ({filteredProjects.length})
+          Jobs ({filteredProjects.length})
         </p>
         <div className="space-y-1">
           {isLoading ? (
             <p className="px-2 text-xs text-muted-foreground">Loading...</p>
           ) : filteredProjects.length === 0 ? (
-            <p className="px-2 text-xs text-muted-foreground">No projects found</p>
+            <p className="px-2 text-xs text-muted-foreground">No jobs found</p>
           ) : (
             filteredProjects.slice(0, 20).map((project: Project) => (
               <ProjectItem

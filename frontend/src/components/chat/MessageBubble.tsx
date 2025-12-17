@@ -1,5 +1,6 @@
-import { User, Bot, Zap } from 'lucide-react';
+import { Bot, Zap } from 'lucide-react';
 import { ToolUsage } from './ToolUsage';
+import { FilePreviewList } from './FilePreview';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import type { ChatMessage } from '@/hooks/useChat';
 
@@ -10,68 +11,82 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
-  return (
-    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
-      {/* Avatar */}
-      <div
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
-        }`}
-      >
-        {isUser ? (
-          <User className="h-4 w-4" />
-        ) : (
-          <Bot className="h-4 w-4" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className={`flex-1 max-w-[80%] ${isUser ? 'text-right' : ''}`}>
-        {/* Message content */}
-        <div
-          className={`inline-block p-4 rounded-2xl text-left ${
-            isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-sm'
-              : 'bg-muted rounded-tl-sm'
-          }`}
-        >
-          {message.content ? (
-            <MarkdownRenderer content={message.content} />
-          ) : message.isStreaming ? (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          ) : null}
-        </div>
-
-        {/* Tool usages (only for assistant messages) */}
-        {!isUser && message.tools && message.tools.length > 0 && (
-          <div className="mt-2 text-left">
-            {message.tools.map((tool) => (
-              <ToolUsage key={tool.id} tool={tool} />
-            ))}
+  if (isUser) {
+    // User messages: right-aligned, clean text
+    return (
+      <div className="flex flex-col items-end">
+        {/* Attached files */}
+        {message.files && message.files.length > 0 && (
+          <div className="mb-2 max-w-[85%]">
+            <FilePreviewList files={message.files} isCompact />
           </div>
         )}
 
-        {/* Model indicator and Timestamp */}
-        <div className="flex items-center gap-2 mt-1">
-          {/* Show model for assistant messages */}
-          {!isUser && message.modelName && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Zap className="h-3 w-3 text-yellow-500" />
-              {message.modelName}
-            </span>
+        {/* Message content */}
+        <div className="max-w-[85%] text-right">
+          {message.content && (
+            <div className="text-foreground">
+              <MarkdownRenderer content={message.content} />
+            </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            {message.timestamp.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
         </div>
+
+        {/* Timestamp */}
+        <p className="text-xs text-muted-foreground mt-1">
+          {message.timestamp.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
       </div>
+    );
+  }
+
+  // Assistant messages: left-aligned with subtle bot indicator
+  return (
+    <div className="flex flex-col items-start">
+      {/* Bot indicator + Model */}
+      <div className="flex items-center gap-2 mb-1">
+        <Bot className="h-4 w-4 text-muted-foreground" />
+        {message.modelName && (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Zap className="h-3 w-3 text-yellow-500" />
+            {message.modelName}
+          </span>
+        )}
+      </div>
+
+      {/* Message content */}
+      <div className="w-full">
+        {message.content ? (
+          <div className="text-foreground">
+            <MarkdownRenderer content={message.content} />
+          </div>
+        ) : message.isStreaming ? (
+          <div className="flex items-center gap-1.5 py-2">
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        ) : null}
+      </div>
+
+      {/* Tool usages */}
+      {message.tools && message.tools.length > 0 && (
+        <div className="mt-3 w-full">
+          {message.tools.map((tool) => (
+            <ToolUsage key={tool.id} tool={tool} />
+          ))}
+        </div>
+      )}
+
+      {/* Timestamp */}
+      <p className="text-xs text-muted-foreground mt-2">
+        {message.timestamp.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </p>
     </div>
   );
 }

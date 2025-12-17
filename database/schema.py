@@ -191,6 +191,23 @@ def init_database(db_path: Optional[Path] = None) -> None:
     """)
 
     # =========================================================================
+    # CHAT_PROJECTS TABLE
+    # Projects for Chat Mode (Claude Desktop style) with custom instructions
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            instructions TEXT,  -- Custom system prompt addition
+            knowledge_path TEXT,  -- Local folder path for knowledge context
+            linked_job_number TEXT,  -- Optional link to apex_operations.db project
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # =========================================================================
     # CREATE INDEXES FOR COMMON QUERIES
     # =========================================================================
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
@@ -210,6 +227,10 @@ def init_database(db_path: Optional[Path] = None) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_type ON activity_logs(log_type)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON activity_logs(timestamp)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_session ON activity_logs(session_id)")
+
+    # Chat projects indexes
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_projects_name ON chat_projects(name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_projects_linked_job ON chat_projects(linked_job_number)")
 
     # =========================================================================
     # SCHEMA MIGRATIONS - Add columns to existing tables
@@ -243,6 +264,20 @@ def _run_migrations(cursor: sqlite3.Cursor) -> None:
     if "message_count" not in existing_columns:
         cursor.execute("ALTER TABLE conversations ADD COLUMN message_count INTEGER DEFAULT 0")
         print("Migration: Added 'message_count' column to conversations")
+
+    # Add chat_project_id column if missing (links conversation to a chat project)
+    if "chat_project_id" not in existing_columns:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN chat_project_id INTEGER REFERENCES chat_projects(id)")
+        print("Migration: Added 'chat_project_id' column to conversations")
+
+    # Check which columns exist in chat_projects table
+    cursor.execute("PRAGMA table_info(chat_projects)")
+    chat_projects_columns = {row[1] for row in cursor.fetchall()}
+
+    # Add knowledge_path column if missing
+    if "knowledge_path" not in chat_projects_columns:
+        cursor.execute("ALTER TABLE chat_projects ADD COLUMN knowledge_path TEXT")
+        print("Migration: Added 'knowledge_path' column to chat_projects")
 
 
 if __name__ == "__main__":

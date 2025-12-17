@@ -45,9 +45,9 @@ export function TopNav() {
           label="Chat"
         />
         <TopNavItem
-          to="/projects"
+          to="/jobs"
           icon={<Briefcase className="h-4 w-4" />}
-          label="Projects"
+          label="Jobs"
         />
       </nav>
 

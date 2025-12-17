@@ -49,9 +49,9 @@ function AuthenticatedApp() {
         {/* Chat Section */}
         <Route index element={<ChatPage />} />
 
-        {/* Projects Section */}
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:id" element={<ProjectDetailPage />} />
+        {/* Jobs Section */}
+        <Route path="jobs" element={<ProjectsPage />} />
+        <Route path="jobs/:id" element={<ProjectDetailPage />} />
 
         {/* Settings/Admin Section */}
         <Route path="settings" element={<SettingsPage />} />

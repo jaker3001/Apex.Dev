@@ -21,7 +21,7 @@ export function AgentsPage() {
     });
   };
 
-  const handleDeleteAgent = async (id: number, name: string) => {
+  const handleDeleteAgent = async (_id: number, name: string) => {
     if (window.confirm(`Delete agent "${name}"?`)) {
       await deleteAgent(name);
       await fetchAgents();

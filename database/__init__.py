@@ -58,6 +58,12 @@ from .operations_apex import (
     create_payment,
     get_payments_for_project,
     update_payment,
+    # Media operations
+    create_media,
+    get_media,
+    get_media_for_project,
+    update_media,
+    delete_media,
 )
 
 # Apex Assistant database functions
@@ -96,6 +102,12 @@ from .operations import (
     # Activity log operations
     log_activity,
     get_activity_logs,
+    # Chat project operations
+    create_chat_project,
+    get_chat_project,
+    get_all_chat_projects,
+    update_chat_project,
+    delete_chat_project,
 )
 
 __all__ = [
@@ -128,6 +140,12 @@ __all__ = [
     "update_mcp_connection_status",
     "log_activity",
     "get_activity_logs",
+    # Chat project operations
+    "create_chat_project",
+    "get_chat_project",
+    "get_all_chat_projects",
+    "update_chat_project",
+    "delete_chat_project",
     # Apex Operations database
     "get_ops_connection",
     "init_apex_ops_database",
@@ -180,4 +198,10 @@ __all__ = [
     "create_payment",
     "get_payments_for_project",
     "update_payment",
+    # Media operations
+    "create_media",
+    "get_media",
+    "get_media_for_project",
+    "update_media",
+    "delete_media",
 ]

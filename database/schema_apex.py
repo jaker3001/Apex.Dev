@@ -218,7 +218,8 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
             version INTEGER DEFAULT 1,
             estimate_type TEXT,
             amount REAL,
-            status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'submitted', 'approved', 'revision_requested', 'denied')),
+            original_amount REAL,
+            status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'submitted', 'approved', 'revision_requested', 'revision', 'denied')),
             submitted_date TEXT,
             approved_date TEXT,
             xactimate_file_path TEXT,
@@ -227,6 +228,12 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
             FOREIGN KEY (project_id) REFERENCES projects(id)
         )
     """)
+
+    # Migration: Add original_amount column if it doesn't exist
+    cursor.execute("PRAGMA table_info(estimates)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'original_amount' not in columns:
+        cursor.execute("ALTER TABLE estimates ADD COLUMN original_amount REAL")
 
     # =========================================================================
     # PAYMENTS TABLE
@@ -359,6 +366,50 @@ def init_apex_ops_database(db_path: Optional[Path] = None) -> None:
 
 def _run_ops_migrations(cursor: sqlite3.Cursor) -> None:
     """Run database migrations to add new columns to existing tables."""
+
+    # =========================================================================
+    # ESTIMATES TABLE MIGRATION - Add 'revision' status to CHECK constraint
+    # SQLite doesn't support ALTER CHECK, so we recreate the table
+    # =========================================================================
+    cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='estimates'")
+    result = cursor.fetchone()
+    if result and "'revision'" not in result[0]:
+        print("Migration: Recreating estimates table with 'revision' status...")
+
+        # Create new table with correct schema
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS estimates_new (
+                id INTEGER PRIMARY KEY,
+                project_id INTEGER NOT NULL,
+                version INTEGER DEFAULT 1,
+                estimate_type TEXT,
+                amount REAL,
+                original_amount REAL,
+                status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'submitted', 'approved', 'revision_requested', 'revision', 'denied')),
+                submitted_date TEXT,
+                approved_date TEXT,
+                xactimate_file_path TEXT,
+                notes TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+            )
+        """)
+
+        # Copy data from old table
+        cursor.execute("""
+            INSERT INTO estimates_new (id, project_id, version, estimate_type, amount, original_amount, status, submitted_date, approved_date, xactimate_file_path, notes, created_at)
+            SELECT id, project_id, version, estimate_type, amount, original_amount, status, submitted_date, approved_date, xactimate_file_path, notes, created_at
+            FROM estimates
+        """)
+
+        # Drop old table and rename new one
+        cursor.execute("DROP TABLE estimates")
+        cursor.execute("ALTER TABLE estimates_new RENAME TO estimates")
+
+        # Recreate the index
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_estimates_project_id ON estimates(project_id)")
+
+        print("Migration: Estimates table recreated with 'revision' status support")
 
     # Check which columns exist in projects table
     cursor.execute("PRAGMA table_info(projects)")
