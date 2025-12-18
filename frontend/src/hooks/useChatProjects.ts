@@ -29,7 +29,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
     setError(null);
 
     try {
-      const response = await fetch('${API_BASE}/chat-projects', {
+      const response = await fetch(`${API_BASE}/chat-projects`, {
         headers: {
           ...getAuthHeader(),
         },
@@ -56,7 +56,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
     linked_job_number?: string;
   }): Promise<ChatProject | null> => {
     try {
-      const response = await fetch('${API_BASE}/chat-projects', {
+      const response = await fetch(`${API_BASE}/chat-projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

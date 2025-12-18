@@ -41,7 +41,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
     setError(null);
 
     try {
-      const response = await fetch('${API_BASE}/skills', {
+      const response = await fetch(`${API_BASE}/skills`, {
         headers: {
           ...getAuthHeader(),
         },
@@ -62,7 +62,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
 
   const fetchTemplates = useCallback(async () => {
     try {
-      const response = await fetch('${API_BASE}/skills/templates', {
+      const response = await fetch(`${API_BASE}/skills/templates`, {
         headers: {
           ...getAuthHeader(),
         },
@@ -88,7 +88,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
     tools_allowed?: string[];
   }): Promise<Skill | null> => {
     try {
-      const response = await fetch('${API_BASE}/skills', {
+      const response = await fetch(`${API_BASE}/skills`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
