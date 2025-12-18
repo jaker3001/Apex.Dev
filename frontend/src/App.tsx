@@ -10,6 +10,7 @@ import { LearnPage } from './pages/LearnPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
 import { ChatProvider } from './contexts/ChatContext';
@@ -48,6 +49,9 @@ function AuthenticatedApp() {
         <Route path="/" element={<AppLayout />}>
         {/* Chat Section */}
         <Route index element={<ChatPage />} />
+
+        {/* Dashboard Section */}
+        <Route path="dashboard" element={<DashboardPage />} />
 
         {/* Jobs Section */}
         <Route path="jobs" element={<ProjectsPage />} />

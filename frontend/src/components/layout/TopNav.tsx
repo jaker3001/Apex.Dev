@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { MessageSquare, Briefcase, Settings } from 'lucide-react';
+import { MessageSquare, LayoutDashboard, Briefcase, Settings } from 'lucide-react';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface TopNavItemProps {
   to: string;
@@ -45,23 +46,31 @@ export function TopNav() {
           label="Chat"
         />
         <TopNavItem
+          to="/dashboard"
+          icon={<LayoutDashboard className="h-4 w-4" />}
+          label="Dashboard"
+        />
+        <TopNavItem
           to="/jobs"
           icon={<Briefcase className="h-4 w-4" />}
           label="Jobs"
         />
       </nav>
 
-      {/* Right: Settings */}
-      <button
-        onClick={() => navigate('/settings')}
-        className={cn(
-          'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-          'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-        )}
-        title="Settings"
-      >
-        <Settings className="h-5 w-5" />
-      </button>
+      {/* Right: Notifications & Settings */}
+      <div className="flex items-center gap-2">
+        <NotificationDropdown />
+        <button
+          onClick={() => navigate('/settings')}
+          className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg transition-colors',
+            'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          )}
+          title="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
+      </div>
     </header>
   );
 }

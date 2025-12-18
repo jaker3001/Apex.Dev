@@ -52,6 +52,30 @@ from database import (
     delete_media,
     # Client operations
     create_client,
+    # Labor entry operations
+    create_labor_entry,
+    get_labor_entry,
+    get_labor_entries_for_project,
+    update_labor_entry,
+    delete_labor_entry,
+    # Receipt operations
+    create_receipt,
+    get_receipt,
+    get_receipts_for_project,
+    update_receipt,
+    delete_receipt,
+    # Work order operations
+    create_work_order,
+    get_work_order,
+    get_work_orders_for_project,
+    update_work_order,
+    delete_work_order,
+    # Activity log operations
+    log_project_activity,
+    get_activity_for_project,
+    # Accounting operations
+    get_project_accounting_summary,
+    update_ready_to_invoice,
 )
 
 from api.schemas.operations import (
@@ -86,6 +110,26 @@ from api.schemas.operations import (
     MediaUpdate,
     MediaResponse,
     MediaListResponse,
+    # Labor entry schemas
+    LaborEntryCreate,
+    LaborEntryUpdate,
+    LaborEntryResponse,
+    LaborEntryListResponse,
+    # Receipt schemas
+    ReceiptCreate,
+    ReceiptUpdate,
+    ReceiptResponse,
+    ReceiptListResponse,
+    # Work order schemas
+    WorkOrderCreate,
+    WorkOrderUpdate,
+    WorkOrderResponse,
+    WorkOrderListResponse,
+    # Activity log schemas
+    ActivityLogResponse,
+    ActivityLogListResponse,
+    # Accounting schemas
+    AccountingSummaryResponse,
 )
 
 router = APIRouter()
@@ -416,6 +460,8 @@ async def assign_contact(project_id: int, assignment: ProjectContactCreate):
         role_on_project=assignment.role_on_project,
         assigned_date=assignment.assigned_date,
         notes=assignment.notes,
+        is_primary_adjuster=assignment.is_primary_adjuster or False,
+        is_tpa=assignment.is_tpa or False,
     )
 
     # Get the contact details
@@ -869,3 +915,450 @@ async def remove_project_media(project_id: int, media_id: int):
         raise HTTPException(status_code=404, detail="Media not found")
 
     return {"message": "Media deleted successfully"}
+
+
+# =============================================================================
+# LABOR ENTRY ENDPOINTS
+# =============================================================================
+
+@router.get("/projects/{project_id}/labor", response_model=LaborEntryListResponse)
+async def list_project_labor_entries(project_id: int):
+    """
+    Get all labor entries for a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    entries = get_labor_entries_for_project(project_id)
+
+    return {
+        "labor_entries": entries,
+        "total": len(entries),
+    }
+
+
+@router.post("/projects/{project_id}/labor", response_model=LaborEntryResponse)
+async def create_project_labor_entry(project_id: int, entry: LaborEntryCreate):
+    """
+    Add a labor entry to a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    entry_id = create_labor_entry(
+        project_id=project_id,
+        employee_id=entry.employee_id,
+        work_date=entry.work_date,
+        hours=entry.hours,
+        hourly_rate=entry.hourly_rate,
+        work_category=entry.work_category,
+        description=entry.description,
+        billable=entry.billable,
+        created_by=entry.created_by,
+    )
+
+    entries = get_labor_entries_for_project(project_id)
+    created_entry = next((e for e in entries if e.get("id") == entry_id), None)
+
+    return created_entry or {"id": entry_id, "project_id": project_id, "hours": entry.hours}
+
+
+@router.patch("/projects/{project_id}/labor/{labor_id}", response_model=LaborEntryResponse)
+async def update_project_labor_entry(project_id: int, labor_id: int, entry: LaborEntryUpdate):
+    """
+    Update a labor entry.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = entry.model_dump(exclude_unset=True)
+
+    if update_data:
+        update_labor_entry(labor_id, **update_data)
+
+    entries = get_labor_entries_for_project(project_id)
+    updated_entry = next((e for e in entries if e.get("id") == labor_id), None)
+
+    if not updated_entry:
+        raise HTTPException(status_code=404, detail="Labor entry not found")
+
+    return updated_entry
+
+
+@router.delete("/projects/{project_id}/labor/{labor_id}")
+async def remove_project_labor_entry(project_id: int, labor_id: int):
+    """
+    Delete a labor entry.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    deleted = delete_labor_entry(labor_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Labor entry not found")
+
+    return {"message": "Labor entry deleted successfully"}
+
+
+# =============================================================================
+# RECEIPT ENDPOINTS
+# =============================================================================
+
+# Upload directory for receipts
+RECEIPTS_UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads" / "receipts"
+RECEIPTS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.get("/projects/{project_id}/receipts", response_model=ReceiptListResponse)
+async def list_project_receipts(project_id: int):
+    """
+    Get all receipts for a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    receipts = get_receipts_for_project(project_id)
+
+    return {
+        "receipts": receipts,
+        "total": len(receipts),
+    }
+
+
+@router.post("/projects/{project_id}/receipts", response_model=ReceiptResponse)
+async def create_project_receipt(project_id: int, receipt: ReceiptCreate):
+    """
+    Add a receipt to a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    receipt_id = create_receipt(
+        project_id=project_id,
+        vendor_id=receipt.vendor_id,
+        expense_category=receipt.expense_category,
+        description=receipt.description,
+        amount=receipt.amount,
+        expense_date=receipt.expense_date,
+        receipt_file_path=receipt.receipt_file_path,
+        reimbursable=receipt.reimbursable,
+        paid_by=receipt.paid_by,
+        created_by=receipt.created_by,
+    )
+
+    receipts = get_receipts_for_project(project_id)
+    created_receipt = next((r for r in receipts if r.get("id") == receipt_id), None)
+
+    return created_receipt or {"id": receipt_id, "project_id": project_id, "amount": receipt.amount}
+
+
+@router.post("/projects/{project_id}/receipts/upload")
+async def upload_receipt_file(
+    project_id: int,
+    file: UploadFile = File(...),
+):
+    """
+    Upload a receipt file (image or PDF).
+
+    Returns the file path that should be stored with the receipt record.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate file type
+    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    # Create project-specific directory
+    project_dir = RECEIPTS_UPLOAD_DIR / str(project_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    original_name = Path(file.filename or "receipt").stem
+    stored_filename = f"{file_id}_{original_name}{file_ext}"
+    file_path = project_dir / stored_filename
+
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Return relative path for storage in database
+    relative_path = f"receipts/{project_id}/{stored_filename}"
+
+    return {
+        "file_path": relative_path,
+        "file_name": file.filename,
+        "file_size": len(content),
+    }
+
+
+@router.patch("/projects/{project_id}/receipts/{receipt_id}", response_model=ReceiptResponse)
+async def update_project_receipt(project_id: int, receipt_id: int, receipt: ReceiptUpdate):
+    """
+    Update a receipt.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = receipt.model_dump(exclude_unset=True)
+
+    if update_data:
+        update_receipt(receipt_id, **update_data)
+
+    receipts = get_receipts_for_project(project_id)
+    updated_receipt = next((r for r in receipts if r.get("id") == receipt_id), None)
+
+    if not updated_receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+
+    return updated_receipt
+
+
+@router.delete("/projects/{project_id}/receipts/{receipt_id}")
+async def remove_project_receipt(project_id: int, receipt_id: int):
+    """
+    Delete a receipt.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    deleted = delete_receipt(receipt_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+
+    return {"message": "Receipt deleted successfully"}
+
+
+# =============================================================================
+# WORK ORDER ENDPOINTS
+# =============================================================================
+
+@router.get("/projects/{project_id}/work-orders", response_model=WorkOrderListResponse)
+async def list_project_work_orders(project_id: int):
+    """
+    Get all work orders for a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    work_orders = get_work_orders_for_project(project_id)
+
+    return {
+        "work_orders": work_orders,
+        "total": len(work_orders),
+    }
+
+
+@router.post("/projects/{project_id}/work-orders", response_model=WorkOrderResponse)
+async def create_project_work_order(project_id: int, work_order: WorkOrderCreate):
+    """
+    Add a work order to a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    work_order_id = create_work_order(
+        project_id=project_id,
+        work_order_number=work_order.work_order_number,
+        title=work_order.title,
+        description=work_order.description,
+        budget_amount=work_order.budget_amount,
+        status=work_order.status,
+        document_file_path=work_order.document_file_path,
+    )
+
+    work_orders = get_work_orders_for_project(project_id)
+    created_work_order = next((w for w in work_orders if w.get("id") == work_order_id), None)
+
+    return created_work_order or {"id": work_order_id, "project_id": project_id, "title": work_order.title}
+
+
+@router.patch("/projects/{project_id}/work-orders/{work_order_id}", response_model=WorkOrderResponse)
+async def update_project_work_order(project_id: int, work_order_id: int, work_order: WorkOrderUpdate):
+    """
+    Update a work order.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = work_order.model_dump(exclude_unset=True)
+
+    if update_data:
+        update_work_order(work_order_id, **update_data)
+
+    work_orders = get_work_orders_for_project(project_id)
+    updated_work_order = next((w for w in work_orders if w.get("id") == work_order_id), None)
+
+    if not updated_work_order:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    return updated_work_order
+
+
+@router.delete("/projects/{project_id}/work-orders/{work_order_id}")
+async def remove_project_work_order(project_id: int, work_order_id: int):
+    """
+    Delete a work order.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    deleted = delete_work_order(work_order_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    return {"message": "Work order deleted successfully"}
+
+
+# Upload directory for work orders
+WORKORDERS_UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads" / "workorders"
+WORKORDERS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/projects/{project_id}/work-orders/upload")
+async def upload_work_order_file(
+    project_id: int,
+    file: UploadFile = File(...),
+):
+    """
+    Upload a work order document file (image or PDF).
+
+    Returns the file path that should be stored with the work order record.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate file type
+    allowed_extensions = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    file_ext = Path(file.filename or "").suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    # Create project-specific directory
+    project_dir = WORKORDERS_UPLOAD_DIR / str(project_id)
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    original_name = Path(file.filename or "workorder").stem
+    stored_filename = f"{file_id}_{original_name}{file_ext}"
+    file_path = project_dir / stored_filename
+
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Return relative path for storage in database
+    relative_path = f"workorders/{project_id}/{stored_filename}"
+
+    return {
+        "file_path": relative_path,
+        "file_name": file.filename,
+        "file_size": len(content),
+    }
+
+
+# =============================================================================
+# ACTIVITY LOG ENDPOINTS
+# =============================================================================
+
+@router.get("/projects/{project_id}/activity", response_model=ActivityLogListResponse)
+async def list_project_activity(
+    project_id: int,
+    event_types: Optional[str] = Query(default=None, description="Comma-separated event types to filter"),
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    Get activity log for a project.
+
+    Optionally filter by event types (comma-separated).
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Parse event types filter
+    event_type_list = None
+    if event_types:
+        event_type_list = [t.strip() for t in event_types.split(",")]
+
+    activities = get_activity_for_project(
+        project_id,
+        event_types=event_type_list,
+        limit=limit,
+        offset=offset,
+    )
+
+    return {
+        "activities": activities,
+        "total": len(activities),
+    }
+
+
+# =============================================================================
+# ACCOUNTING ENDPOINTS
+# =============================================================================
+
+@router.get("/projects/{project_id}/accounting-summary", response_model=AccountingSummaryResponse)
+async def get_accounting_summary(project_id: int):
+    """
+    Get calculated accounting metrics for a project.
+
+    Returns totals for estimates, payments, labor, materials, and profit margins.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    summary = get_project_accounting_summary(project_id)
+
+    return summary
+
+
+@router.patch("/projects/{project_id}/ready-to-invoice")
+async def toggle_ready_to_invoice(project_id: int, ready: bool):
+    """
+    Toggle the ready-to-invoice flag for a project.
+    """
+    existing = get_project(project_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_ready_to_invoice(project_id, ready)
+
+    return {"message": f"Ready to invoice set to {ready}", "ready_to_invoice": ready}

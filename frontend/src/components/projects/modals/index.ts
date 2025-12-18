@@ -5,3 +5,6 @@ export { AddEstimateModal } from './AddEstimateModal';
 export { EstimateViewerModal } from './EstimateViewerModal';
 export { RecordPaymentModal } from './RecordPaymentModal';
 export { AddContactModal } from './AddContactModal';
+export { LaborEntryModal } from './LaborEntryModal';
+export { ReceiptModal } from './ReceiptModal';
+export { WorkOrderModal } from './WorkOrderModal';

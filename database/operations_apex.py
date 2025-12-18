@@ -505,12 +505,14 @@ def get_project_full(project_id: int) -> Optional[Dict[str, Any]]:
     # Get assigned contacts with organization info
     cursor.execute(
         """
-        SELECT c.*, org.name as organization_name, org.org_type, pc.role_on_project
+        SELECT c.*, org.name as organization_name, org.org_type,
+               org.has_msa, org.msa_signed_date, org.msa_expiration_date,
+               pc.role_on_project, pc.is_primary_adjuster, pc.is_tpa
         FROM project_contacts pc
         JOIN contacts c ON pc.contact_id = c.id
         LEFT JOIN organizations org ON c.organization_id = org.id
         WHERE pc.project_id = ?
-        ORDER BY pc.role_on_project, c.last_name
+        ORDER BY pc.is_primary_adjuster DESC, pc.role_on_project, c.last_name
         """,
         (project_id,)
     )
@@ -561,7 +563,47 @@ def get_project_full(project_id: int) -> Optional[Dict[str, Any]]:
     media = cursor.fetchall()
     project_dict['media'] = _rows_to_list(media)
 
+    # Get labor entries
+    cursor.execute(
+        """
+        SELECT le.*, c.first_name || ' ' || c.last_name as employee_name
+        FROM labor_entries le
+        LEFT JOIN contacts c ON le.employee_id = c.id
+        WHERE le.project_id = ?
+        ORDER BY le.work_date DESC, le.created_at DESC
+        """,
+        (project_id,)
+    )
+    labor_entries = cursor.fetchall()
+    project_dict['labor_entries'] = _rows_to_list(labor_entries)
+
+    # Get receipts
+    cursor.execute(
+        """
+        SELECT r.*, org.name as vendor_name
+        FROM receipts r
+        LEFT JOIN organizations org ON r.vendor_id = org.id
+        WHERE r.project_id = ?
+        ORDER BY r.expense_date DESC, r.created_at DESC
+        """,
+        (project_id,)
+    )
+    receipts = cursor.fetchall()
+    project_dict['receipts'] = _rows_to_list(receipts)
+
+    # Get work orders
+    cursor.execute(
+        "SELECT * FROM work_orders WHERE project_id = ? ORDER BY created_at DESC",
+        (project_id,)
+    )
+    work_orders = cursor.fetchall()
+    project_dict['work_orders'] = _rows_to_list(work_orders)
+
     conn.close()
+
+    # Get accounting summary (uses separate connection)
+    project_dict['accounting_summary'] = get_project_accounting_summary(project_id)
+
     return project_dict
 
 
@@ -630,16 +672,19 @@ def assign_contact_to_project(
     role_on_project: Optional[str] = None,
     assigned_date: Optional[str] = None,
     notes: Optional[str] = None,
+    is_primary_adjuster: bool = False,
+    is_tpa: bool = False,
 ) -> int:
     """Assign a contact to a project."""
     conn = get_ops_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO project_contacts (project_id, contact_id, role_on_project, assigned_date, notes)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO project_contacts (project_id, contact_id, role_on_project, assigned_date, notes, is_primary_adjuster, is_tpa)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (project_id, contact_id, role_on_project, assigned_date or _get_timestamp(), notes)
+        (project_id, contact_id, role_on_project, assigned_date or _get_timestamp(), notes,
+         1 if is_primary_adjuster else 0, 1 if is_tpa else 0)
     )
     pc_id = cursor.lastrowid
     conn.commit()
@@ -653,12 +698,15 @@ def get_contacts_for_project(project_id: int) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT c.*, org.name as organization_name, org.org_type, pc.role_on_project, pc.id as assignment_id
+        SELECT c.*, org.name as organization_name, org.org_type,
+               org.has_msa, org.msa_signed_date, org.msa_expiration_date,
+               pc.role_on_project, pc.id as assignment_id,
+               pc.is_primary_adjuster, pc.is_tpa
         FROM project_contacts pc
         JOIN contacts c ON pc.contact_id = c.id
         LEFT JOIN organizations org ON c.organization_id = org.id
         WHERE pc.project_id = ?
-        ORDER BY pc.role_on_project, c.last_name
+        ORDER BY pc.is_primary_adjuster DESC, pc.role_on_project, c.last_name
         """,
         (project_id,)
     )
@@ -705,6 +753,20 @@ def create_note(
     note_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log activity
+    type_str = f" ({note_type})" if note_type else ""
+    preview = content[:100] + "..." if len(content) > 100 else content
+    log_project_activity(
+        project_id=project_id,
+        event_type="note_added",
+        event_subtype=note_type,
+        description=f"Note added{type_str}: {subject or preview}",
+        entity_type="note",
+        entity_id=note_id,
+        actor_id=author_id,
+    )
+
     return note_id
 
 
@@ -797,6 +859,20 @@ def create_estimate(
     estimate_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log activity
+    type_str = f" ({estimate_type})" if estimate_type else ""
+    version_str = f" v{version}" if version > 1 else ""
+    log_project_activity(
+        project_id=project_id,
+        event_type="estimate_created",
+        event_subtype=status,
+        description=f"Estimate{type_str}{version_str} created for ${amount:,.2f}",
+        entity_type="estimate",
+        entity_id=estimate_id,
+        amount=amount,
+    )
+
     return estimate_id
 
 
@@ -839,12 +915,42 @@ def update_estimate_status(
     approved_date: Optional[str] = None
 ) -> bool:
     """Update estimate status and optionally set approved date."""
+    # Get estimate details for logging
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT project_id, amount, estimate_type, status as old_status FROM estimates WHERE id = ?", (estimate_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return False
+
+    estimate_data = dict(row)
+    old_status = estimate_data.get('old_status')
+
     kwargs = {'status': status}
     if approved_date:
         kwargs['approved_date'] = approved_date
     elif status == 'approved':
         kwargs['approved_date'] = _get_timestamp()
-    return update_estimate(estimate_id, **kwargs)
+    result = update_estimate(estimate_id, **kwargs)
+
+    # Log activity
+    if result:
+        type_str = f" ({estimate_data.get('estimate_type')})" if estimate_data.get('estimate_type') else ""
+        log_project_activity(
+            project_id=estimate_data['project_id'],
+            event_type="estimate_status_changed",
+            event_subtype=status,
+            description=f"Estimate{type_str} {status}" + (f" (${estimate_data['amount']:,.2f})" if status == 'approved' else ""),
+            entity_type="estimate",
+            entity_id=estimate_id,
+            old_value=old_status,
+            new_value=status,
+            amount=estimate_data['amount'] if status == 'approved' else None,
+        )
+
+    return result
 
 
 # =============================================================================
@@ -882,6 +988,20 @@ def create_payment(
     payment_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log activity
+    method_str = f" via {payment_method}" if payment_method else ""
+    type_str = f" ({payment_type})" if payment_type else ""
+    log_project_activity(
+        project_id=project_id,
+        event_type="payment_received",
+        event_subtype=payment_type,
+        description=f"Payment{type_str} received: ${amount:,.2f}{method_str}",
+        entity_type="payment",
+        entity_id=payment_id,
+        amount=amount,
+    )
+
     return payment_id
 
 
@@ -1011,3 +1131,612 @@ def delete_media(media_id: int) -> bool:
     affected = cursor.rowcount
     conn.close()
     return affected > 0
+
+
+# =============================================================================
+# LABOR ENTRY OPERATIONS
+# =============================================================================
+
+def create_labor_entry(
+    project_id: int,
+    work_date: str,
+    hours: float,
+    employee_id: Optional[int] = None,
+    hourly_rate: Optional[float] = None,
+    work_category: Optional[str] = None,
+    description: Optional[str] = None,
+    billable: bool = True,
+    created_by: Optional[int] = None,
+) -> int:
+    """Create a new labor entry for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO labor_entries (
+            project_id, employee_id, work_date, hours, hourly_rate,
+            work_category, description, billable, created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (project_id, employee_id, work_date, hours, hourly_rate,
+         work_category, description, 1 if billable else 0, created_by)
+    )
+    entry_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Log activity
+    cost = (hours * hourly_rate) if hourly_rate else None
+    category_str = f" ({work_category})" if work_category else ""
+    log_project_activity(
+        project_id=project_id,
+        event_type="labor_logged",
+        description=f"Logged {hours} hours{category_str}" + (f": {description}" if description else ""),
+        entity_type="labor",
+        entity_id=entry_id,
+        amount=cost,
+        actor_id=created_by,
+    )
+
+    return entry_id
+
+
+def get_labor_entry(entry_id: int) -> Optional[Dict[str, Any]]:
+    """Get a labor entry by ID."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT le.*, c.first_name || ' ' || c.last_name as employee_name
+        FROM labor_entries le
+        LEFT JOIN contacts c ON le.employee_id = c.id
+        WHERE le.id = ?
+        """,
+        (entry_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_dict(row)
+
+
+def get_labor_entries_for_project(project_id: int) -> List[Dict[str, Any]]:
+    """Get all labor entries for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT le.*, c.first_name || ' ' || c.last_name as employee_name
+        FROM labor_entries le
+        LEFT JOIN contacts c ON le.employee_id = c.id
+        WHERE le.project_id = ?
+        ORDER BY le.work_date DESC, le.created_at DESC
+        """,
+        (project_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
+def update_labor_entry(entry_id: int, **kwargs) -> bool:
+    """Update a labor entry."""
+    if not kwargs:
+        return False
+
+    kwargs['updated_at'] = _get_timestamp()
+
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    set_parts = [f"{key} = ?" for key in kwargs.keys()]
+    values = list(kwargs.values())
+    values.append(entry_id)
+
+    query = f"UPDATE labor_entries SET {', '.join(set_parts)} WHERE id = ?"
+    cursor.execute(query, values)
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def delete_labor_entry(entry_id: int) -> bool:
+    """Delete a labor entry (hard delete)."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM labor_entries WHERE id = ?", (entry_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+# =============================================================================
+# RECEIPT OPERATIONS
+# =============================================================================
+
+def create_receipt(
+    project_id: int,
+    expense_category: str,
+    description: str,
+    amount: float,
+    expense_date: str,
+    vendor_id: Optional[int] = None,
+    receipt_file_path: Optional[str] = None,
+    reimbursable: bool = False,
+    paid_by: Optional[str] = None,
+    created_by: Optional[int] = None,
+) -> int:
+    """Create a new receipt/expense for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO receipts (
+            project_id, vendor_id, expense_category, description, amount,
+            expense_date, receipt_file_path, reimbursable, paid_by, created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (project_id, vendor_id, expense_category, description, amount,
+         expense_date, receipt_file_path, 1 if reimbursable else 0, paid_by, created_by)
+    )
+    receipt_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Log activity
+    category_display = expense_category.replace('_', ' ').title()
+    log_project_activity(
+        project_id=project_id,
+        event_type="receipt_added",
+        event_subtype=expense_category,
+        description=f"Expense ({category_display}): ${amount:,.2f} - {description}",
+        entity_type="receipt",
+        entity_id=receipt_id,
+        amount=amount,
+        actor_id=created_by,
+    )
+
+    return receipt_id
+
+
+def get_receipt(receipt_id: int) -> Optional[Dict[str, Any]]:
+    """Get a receipt by ID."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT r.*, org.name as vendor_name
+        FROM receipts r
+        LEFT JOIN organizations org ON r.vendor_id = org.id
+        WHERE r.id = ?
+        """,
+        (receipt_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_dict(row)
+
+
+def get_receipts_for_project(project_id: int) -> List[Dict[str, Any]]:
+    """Get all receipts for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT r.*, org.name as vendor_name
+        FROM receipts r
+        LEFT JOIN organizations org ON r.vendor_id = org.id
+        WHERE r.project_id = ?
+        ORDER BY r.expense_date DESC, r.created_at DESC
+        """,
+        (project_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
+def update_receipt(receipt_id: int, **kwargs) -> bool:
+    """Update a receipt."""
+    if not kwargs:
+        return False
+
+    kwargs['updated_at'] = _get_timestamp()
+
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    set_parts = [f"{key} = ?" for key in kwargs.keys()]
+    values = list(kwargs.values())
+    values.append(receipt_id)
+
+    query = f"UPDATE receipts SET {', '.join(set_parts)} WHERE id = ?"
+    cursor.execute(query, values)
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def delete_receipt(receipt_id: int) -> bool:
+    """Delete a receipt (hard delete)."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM receipts WHERE id = ?", (receipt_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+# =============================================================================
+# WORK ORDER OPERATIONS
+# =============================================================================
+
+def create_work_order(
+    project_id: int,
+    title: str,
+    work_order_number: Optional[str] = None,
+    description: Optional[str] = None,
+    budget_amount: Optional[float] = None,
+    status: str = "draft",
+    document_file_path: Optional[str] = None,
+) -> int:
+    """Create a new work order for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO work_orders (
+            project_id, work_order_number, title, description, budget_amount, status, document_file_path
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (project_id, work_order_number, title, description, budget_amount, status, document_file_path)
+    )
+    wo_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Log activity
+    wo_num_str = f" #{work_order_number}" if work_order_number else ""
+    budget_str = f" (budget: ${budget_amount:,.2f})" if budget_amount else ""
+    log_project_activity(
+        project_id=project_id,
+        event_type="work_order_created",
+        event_subtype=status,
+        description=f"Work order{wo_num_str} created: {title}{budget_str}",
+        entity_type="work_order",
+        entity_id=wo_id,
+        amount=budget_amount,
+    )
+
+    return wo_id
+
+
+def get_work_order(wo_id: int) -> Optional[Dict[str, Any]]:
+    """Get a work order by ID."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM work_orders WHERE id = ?", (wo_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return _row_to_dict(row)
+
+
+def get_work_orders_for_project(project_id: int) -> List[Dict[str, Any]]:
+    """Get all work orders for a project."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM work_orders WHERE project_id = ? ORDER BY created_at DESC",
+        (project_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
+def update_work_order(wo_id: int, **kwargs) -> bool:
+    """Update a work order."""
+    if not kwargs:
+        return False
+
+    kwargs['updated_at'] = _get_timestamp()
+
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    set_parts = [f"{key} = ?" for key in kwargs.keys()]
+    values = list(kwargs.values())
+    values.append(wo_id)
+
+    query = f"UPDATE work_orders SET {', '.join(set_parts)} WHERE id = ?"
+    cursor.execute(query, values)
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def delete_work_order(wo_id: int) -> bool:
+    """Delete a work order (hard delete)."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM work_orders WHERE id = ?", (wo_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+# =============================================================================
+# ACTIVITY LOG OPERATIONS
+# =============================================================================
+
+def log_project_activity(
+    project_id: int,
+    event_type: str,
+    description: str,
+    event_subtype: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[int] = None,
+    old_value: Optional[str] = None,
+    new_value: Optional[str] = None,
+    amount: Optional[float] = None,
+    actor_id: Optional[int] = None,
+    metadata: Optional[str] = None,
+) -> int:
+    """Log an activity event for a project (renamed to avoid collision with operations.py)."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO activity_log (
+            project_id, event_type, event_subtype, entity_type, entity_id,
+            description, old_value, new_value, amount, actor_id, metadata
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (project_id, event_type, event_subtype, entity_type, entity_id,
+         description, old_value, new_value, amount, actor_id, metadata)
+    )
+    log_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return log_id
+
+
+def get_activity_for_project(
+    project_id: int,
+    event_types: Optional[List[str]] = None,
+    limit: int = 50,
+    offset: int = 0
+) -> List[Dict[str, Any]]:
+    """Get activity log for a project with optional filtering."""
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT al.*, c.first_name || ' ' || c.last_name as actor_name
+        FROM activity_log al
+        LEFT JOIN contacts c ON al.actor_id = c.id
+        WHERE al.project_id = ?
+    """
+    params: List[Any] = [project_id]
+
+    if event_types:
+        placeholders = ', '.join(['?' for _ in event_types])
+        query += f" AND al.event_type IN ({placeholders})"
+        params.extend(event_types)
+
+    query += " ORDER BY al.created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return _rows_to_list(rows)
+
+
+# =============================================================================
+# ACCOUNTING SUMMARY
+# =============================================================================
+
+def get_project_accounting_summary(project_id: int) -> Dict[str, Any]:
+    """
+    Get calculated accounting metrics for a project.
+
+    Returns a dictionary matching AccountingSummaryResponse schema with:
+    - Estimates: total_estimates, approved_estimates, pending_estimates
+    - Payments: total_paid, balance_due
+    - Work Orders: work_order_budget
+    - Labor: total_labor_cost, total_labor_hours, billable_labor_cost, billable_labor_hours
+    - Materials: total_materials_cost, total_expenses, reimbursable_expenses
+    - Profitability: gross_profit, gross_profit_percentage
+    - Counts: estimate_count, payment_count, labor_entry_count, receipt_count, work_order_count
+    - ready_to_invoice: Boolean flag from project
+    """
+    conn = get_ops_connection()
+    cursor = conn.cursor()
+
+    summary: Dict[str, Any] = {
+        # Estimates
+        'total_estimates': 0.0,
+        'approved_estimates': 0.0,
+        'pending_estimates': 0.0,
+        # Payments
+        'total_paid': 0.0,
+        'balance_due': 0.0,
+        # Work Orders
+        'work_order_budget': 0.0,
+        # Labor
+        'total_labor_cost': 0.0,
+        'total_labor_hours': 0.0,
+        'billable_labor_cost': 0.0,
+        'billable_labor_hours': 0.0,
+        # Materials/Expenses
+        'total_materials_cost': 0.0,
+        'total_expenses': 0.0,
+        'reimbursable_expenses': 0.0,
+        # Profitability
+        'gross_profit': 0.0,
+        'gross_profit_percentage': 0.0,
+        # Counts
+        'estimate_count': 0,
+        'payment_count': 0,
+        'labor_entry_count': 0,
+        'receipt_count': 0,
+        'work_order_count': 0,
+        # Flags
+        'ready_to_invoice': False,
+    }
+
+    # Get total estimates (sum of latest version per estimate_type)
+    cursor.execute(
+        """
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM estimates e1
+        WHERE project_id = ?
+        AND version = (
+            SELECT MAX(version) FROM estimates e2
+            WHERE e2.project_id = e1.project_id
+            AND COALESCE(e2.estimate_type, '') = COALESCE(e1.estimate_type, '')
+        )
+        """,
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['total_estimates'] = row['total'] if row else 0.0
+
+    # Get approved estimates total
+    cursor.execute(
+        """
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM estimates
+        WHERE project_id = ? AND status = 'approved'
+        """,
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['approved_estimates'] = row['total'] if row else 0.0
+
+    # Get pending estimates total
+    cursor.execute(
+        """
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM estimates
+        WHERE project_id = ? AND status IN ('draft', 'submitted')
+        """,
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['pending_estimates'] = row['total'] if row else 0.0
+
+    # Get estimate count
+    cursor.execute(
+        "SELECT COUNT(*) as count FROM estimates WHERE project_id = ?",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['estimate_count'] = row['count'] if row else 0
+
+    # Get total payments and count
+    cursor.execute(
+        "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM payments WHERE project_id = ?",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['total_paid'] = row['total'] if row else 0.0
+    summary['payment_count'] = row['count'] if row else 0
+
+    # Calculate balance due
+    summary['balance_due'] = summary['approved_estimates'] - summary['total_paid']
+
+    # Get work order budget and count
+    cursor.execute(
+        "SELECT COALESCE(SUM(budget_amount), 0) as total, COUNT(*) as count FROM work_orders WHERE project_id = ?",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['work_order_budget'] = row['total'] if row else 0.0
+    summary['work_order_count'] = row['count'] if row else 0
+
+    # Get all labor totals and count
+    cursor.execute(
+        """
+        SELECT
+            COALESCE(SUM(hours), 0) as total_hours,
+            COALESCE(SUM(hours * COALESCE(hourly_rate, 0)), 0) as total_cost,
+            COUNT(*) as count
+        FROM labor_entries
+        WHERE project_id = ?
+        """,
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['total_labor_hours'] = row['total_hours'] if row else 0.0
+    summary['total_labor_cost'] = row['total_cost'] if row else 0.0
+    summary['labor_entry_count'] = row['count'] if row else 0
+
+    # Get billable labor totals
+    cursor.execute(
+        """
+        SELECT
+            COALESCE(SUM(hours), 0) as total_hours,
+            COALESCE(SUM(hours * COALESCE(hourly_rate, 0)), 0) as total_cost
+        FROM labor_entries
+        WHERE project_id = ? AND billable = 1
+        """,
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['billable_labor_hours'] = row['total_hours'] if row else 0.0
+    summary['billable_labor_cost'] = row['total_cost'] if row else 0.0
+
+    # Get materials/receipts totals and count
+    cursor.execute(
+        "SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM receipts WHERE project_id = ?",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['total_materials_cost'] = row['total'] if row else 0.0
+    summary['receipt_count'] = row['count'] if row else 0
+
+    # Get reimbursable expenses
+    cursor.execute(
+        "SELECT COALESCE(SUM(amount), 0) as total FROM receipts WHERE project_id = ? AND reimbursable = 1",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['reimbursable_expenses'] = row['total'] if row else 0.0
+
+    # Calculate total expenses (labor + materials)
+    summary['total_expenses'] = summary['total_labor_cost'] + summary['total_materials_cost']
+
+    # Calculate gross profit
+    summary['gross_profit'] = summary['approved_estimates'] - summary['total_expenses']
+
+    if summary['approved_estimates'] > 0:
+        summary['gross_profit_percentage'] = (summary['gross_profit'] / summary['approved_estimates']) * 100
+    else:
+        summary['gross_profit_percentage'] = 0.0
+
+    # Get ready_to_invoice flag
+    cursor.execute(
+        "SELECT COALESCE(ready_to_invoice, 0) as ready FROM projects WHERE id = ?",
+        (project_id,)
+    )
+    row = cursor.fetchone()
+    summary['ready_to_invoice'] = bool(row['ready']) if row else False
+
+    conn.close()
+    return summary
+
+
+def update_ready_to_invoice(project_id: int, ready: bool) -> bool:
+    """Update the ready_to_invoice flag for a project."""
+    return update_project(project_id, ready_to_invoice=1 if ready else 0)

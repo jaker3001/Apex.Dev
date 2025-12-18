@@ -109,6 +109,7 @@ def get_tasks_by_category(
 
 def create_conversation(
     session_id: Optional[str] = None,
+    user_id: Optional[int] = None,
     db_path: Optional[Path] = None
 ) -> int:
     """Create a new conversation and return its ID."""
@@ -116,9 +117,9 @@ def create_conversation(
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO conversations (session_id, is_active)
-        VALUES (?, 1)
-    """, (session_id,))
+        INSERT INTO conversations (session_id, user_id, is_active)
+        VALUES (?, ?, 1)
+    """, (session_id, user_id))
 
     conv_id = cursor.lastrowid
     conn.commit()
@@ -563,9 +564,10 @@ def get_messages_by_conversation(
 def get_conversations_with_preview(
     limit: int = 50,
     include_inactive: bool = False,
+    user_id: Optional[int] = None,
     db_path: Optional[Path] = None
 ) -> list[dict]:
-    """Get conversations with first message preview."""
+    """Get conversations with first message preview, optionally filtered by user."""
     conn = get_connection(db_path)
     cursor = conn.cursor()
 
@@ -578,16 +580,23 @@ def get_conversations_with_preview(
             c.is_active,
             c.last_model_id,
             c.message_count,
+            c.user_id,
             (SELECT content FROM messages m
              WHERE m.conversation_id = c.id
              ORDER BY m.timestamp ASC LIMIT 1) as preview
         FROM conversations c
+        WHERE 1=1
     """
+    params = []
     if not include_inactive:
-        query += " WHERE c.is_active = 1"
+        query += " AND c.is_active = 1"
+    if user_id is not None:
+        query += " AND c.user_id = ?"
+        params.append(user_id)
     query += " ORDER BY c.timestamp DESC LIMIT ?"
+    params.append(limit)
 
-    cursor.execute(query, (limit,))
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 

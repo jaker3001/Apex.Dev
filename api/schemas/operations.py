@@ -516,6 +516,8 @@ class ProjectContactCreate(BaseModel):
     role_on_project: Optional[str] = None
     assigned_date: Optional[str] = None
     notes: Optional[str] = None
+    is_primary_adjuster: Optional[bool] = False
+    is_tpa: Optional[bool] = False
 
 
 class ProjectContactResponse(BaseModel):
@@ -534,8 +536,15 @@ class ProjectContactResponse(BaseModel):
     # From join with organizations
     organization_name: Optional[str] = None
     org_type: Optional[str] = None
+    # MSA fields from organization
+    has_msa: Optional[bool] = None
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    # Project contact assignment fields
     role_on_project: Optional[str] = None
     assignment_id: Optional[int] = None
+    is_primary_adjuster: Optional[bool] = None
+    is_tpa: Optional[bool] = None
 
     class Config:
         extra = "allow"
@@ -566,7 +575,14 @@ class ProjectContactDetail(BaseModel):
     created_at: Optional[str] = None
     organization_name: Optional[str] = None
     org_type: Optional[str] = None
+    # MSA fields from organization
+    has_msa: Optional[bool] = None
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    # Project contact assignment fields
     role_on_project: Optional[str] = None
+    is_primary_adjuster: Optional[bool] = None
+    is_tpa: Optional[bool] = None
 
     class Config:
         extra = "allow"
@@ -605,6 +621,7 @@ class ProjectFullResponse(BaseModel):
     claim_number: Optional[str] = None
     policy_number: Optional[str] = None
     deductible: Optional[float] = None
+    ready_to_invoice: Optional[bool] = False
     notes: Optional[List[NoteResponse]] = []
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -620,6 +637,286 @@ class ProjectFullResponse(BaseModel):
     estimates: List[EstimateResponse] = []
     payments: List[PaymentResponse] = []
     media: List[MediaResponse] = []
+    # New accounting-related data
+    labor_entries: List["LaborEntryResponse"] = []
+    receipts: List["ReceiptResponse"] = []
+    work_orders: List["WorkOrderResponse"] = []
+    accounting_summary: Optional["AccountingSummaryResponse"] = None
 
     class Config:
         extra = "allow"
+
+
+# =============================================================================
+# LABOR ENTRY SCHEMAS
+# =============================================================================
+
+WorkCategory = Literal[
+    "demo", "drying", "cleanup", "monitoring", "repair", "admin", "travel", "other"
+]
+
+
+class LaborEntryCreate(BaseModel):
+    """Schema for creating a new labor entry."""
+    employee_id: Optional[int] = None
+    work_date: str  # YYYY-MM-DD
+    hours: float
+    hourly_rate: Optional[float] = None
+    work_category: Optional[str] = None
+    description: Optional[str] = None
+    billable: bool = True
+    created_by: Optional[int] = None
+
+
+class LaborEntryUpdate(BaseModel):
+    """Schema for updating a labor entry (all fields optional)."""
+    employee_id: Optional[int] = None
+    work_date: Optional[str] = None
+    hours: Optional[float] = None
+    hourly_rate: Optional[float] = None
+    work_category: Optional[str] = None
+    description: Optional[str] = None
+    billable: Optional[bool] = None
+
+
+class LaborEntryResponse(BaseModel):
+    """Response schema for a labor entry."""
+    id: int
+    project_id: int
+    employee_id: Optional[int] = None
+    work_date: str
+    hours: float
+    hourly_rate: Optional[float] = None
+    work_category: Optional[str] = None
+    description: Optional[str] = None
+    billable: bool = True
+    created_by: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # Computed/joined fields
+    employee_name: Optional[str] = None
+    total_cost: Optional[float] = None
+
+
+class LaborEntryListResponse(BaseModel):
+    """Response schema for listing labor entries."""
+    labor_entries: List[LaborEntryResponse]
+    total: int
+
+
+# =============================================================================
+# RECEIPT SCHEMAS
+# =============================================================================
+
+ExpenseCategory = Literal[
+    "materials", "equipment_rental", "subcontractor", "disposal", "permit", "supplies", "other"
+]
+
+PaidBy = Literal[
+    "company_card", "cash", "personal_reimbursement", "vendor_invoice"
+]
+
+
+class ReceiptCreate(BaseModel):
+    """Schema for creating a new receipt."""
+    vendor_id: Optional[int] = None
+    expense_category: str
+    description: str
+    amount: float
+    expense_date: str  # YYYY-MM-DD
+    receipt_file_path: Optional[str] = None
+    reimbursable: bool = False
+    paid_by: Optional[str] = None
+    created_by: Optional[int] = None
+
+
+class ReceiptUpdate(BaseModel):
+    """Schema for updating a receipt (all fields optional)."""
+    vendor_id: Optional[int] = None
+    expense_category: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    expense_date: Optional[str] = None
+    receipt_file_path: Optional[str] = None
+    reimbursable: Optional[bool] = None
+    paid_by: Optional[str] = None
+
+
+class ReceiptResponse(BaseModel):
+    """Response schema for a receipt."""
+    id: int
+    project_id: int
+    vendor_id: Optional[int] = None
+    expense_category: str
+    description: str
+    amount: float
+    expense_date: str
+    receipt_file_path: Optional[str] = None
+    reimbursable: bool = False
+    paid_by: Optional[str] = None
+    created_by: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # Computed/joined fields
+    vendor_name: Optional[str] = None
+
+
+class ReceiptListResponse(BaseModel):
+    """Response schema for listing receipts."""
+    receipts: List[ReceiptResponse]
+    total: int
+
+
+# =============================================================================
+# WORK ORDER SCHEMAS
+# =============================================================================
+
+WorkOrderStatus = Literal["draft", "approved", "in_progress", "completed", "cancelled"]
+
+
+class WorkOrderCreate(BaseModel):
+    """Schema for creating a new work order."""
+    work_order_number: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    budget_amount: Optional[float] = None
+    status: WorkOrderStatus = "draft"
+    approved_by: Optional[int] = None
+    approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
+
+
+class WorkOrderUpdate(BaseModel):
+    """Schema for updating a work order (all fields optional)."""
+    work_order_number: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    budget_amount: Optional[float] = None
+    status: Optional[WorkOrderStatus] = None
+    approved_by: Optional[int] = None
+    approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
+
+
+class WorkOrderResponse(BaseModel):
+    """Response schema for a work order."""
+    id: int
+    project_id: int
+    work_order_number: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    budget_amount: Optional[float] = None
+    status: str = "draft"
+    approved_by: Optional[int] = None
+    approved_date: Optional[str] = None
+    document_file_path: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    # Computed/joined fields
+    approved_by_name: Optional[str] = None
+
+
+class WorkOrderListResponse(BaseModel):
+    """Response schema for listing work orders."""
+    work_orders: List[WorkOrderResponse]
+    total: int
+
+
+# =============================================================================
+# ACTIVITY LOG SCHEMAS
+# =============================================================================
+
+EventType = Literal[
+    "note_added", "note_updated", "note_deleted",
+    "estimate_created", "estimate_updated", "estimate_status_changed",
+    "payment_received", "payment_updated",
+    "media_uploaded", "media_deleted",
+    "labor_logged", "labor_updated", "labor_deleted",
+    "receipt_added", "receipt_updated", "receipt_deleted",
+    "work_order_created", "work_order_updated", "work_order_status_changed",
+    "status_changed", "project_created", "project_updated",
+    "contact_assigned", "contact_removed"
+]
+
+
+class ActivityLogCreate(BaseModel):
+    """Schema for creating a new activity log entry."""
+    event_type: str
+    event_subtype: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    description: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    amount: Optional[float] = None
+    actor_id: Optional[int] = None
+    metadata: Optional[str] = None  # JSON string
+
+
+class ActivityLogResponse(BaseModel):
+    """Response schema for an activity log entry."""
+    id: int
+    project_id: int
+    event_type: str
+    event_subtype: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    description: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    amount: Optional[float] = None
+    actor_id: Optional[int] = None
+    metadata: Optional[str] = None
+    created_at: Optional[str] = None
+    # Computed/joined fields
+    actor_name: Optional[str] = None
+
+
+class ActivityLogListResponse(BaseModel):
+    """Response schema for listing activity log entries."""
+    activities: List[ActivityLogResponse]
+    total: int
+
+
+# =============================================================================
+# ACCOUNTING SUMMARY SCHEMAS
+# =============================================================================
+
+class AccountingSummaryResponse(BaseModel):
+    """
+    Response schema for accounting summary.
+    Provides calculated financial metrics for a project.
+    """
+    # Estimates
+    total_estimates: float = 0.0
+    approved_estimates: float = 0.0
+    pending_estimates: float = 0.0
+
+    # Payments
+    total_paid: float = 0.0
+    balance_due: float = 0.0
+
+    # Work Orders
+    work_order_budget: float = 0.0
+
+    # Labor
+    total_labor_cost: float = 0.0
+    total_labor_hours: float = 0.0
+    billable_labor_cost: float = 0.0
+    billable_labor_hours: float = 0.0
+
+    # Materials/Expenses
+    total_materials_cost: float = 0.0
+    total_expenses: float = 0.0
+    reimbursable_expenses: float = 0.0
+
+    # Profitability
+    gross_profit: float = 0.0
+    gross_profit_percentage: float = 0.0
+
+    # Counts
+    estimate_count: int = 0
+    payment_count: int = 0
+    labor_entry_count: int = 0
+    receipt_count: int = 0
+    work_order_count: int = 0

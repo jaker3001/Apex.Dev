@@ -148,12 +148,14 @@ class ChatService:
 
         return "\n".join(context_parts)
 
-    async def start_session(self, chat_project_id: Optional[int] = None) -> None:
+    async def start_session(self, chat_project_id: Optional[int] = None, user_id: Optional[int] = None) -> None:
         """Start a new chat session.
 
         Args:
             chat_project_id: Optional Chat Mode project ID for context injection
+            user_id: Optional user ID for conversation ownership
         """
+        self.user_id = user_id
         # Build project context if a project is linked
         project_context = None
         if chat_project_id:
@@ -167,6 +169,7 @@ class ChatService:
         # Create conversation record with project link
         self.conversation_id = create_conversation(
             session_id=self.session_id,
+            user_id=self.user_id,
             db_path=self.db_path,
         )
 

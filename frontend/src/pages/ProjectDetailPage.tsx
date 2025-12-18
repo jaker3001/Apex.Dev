@@ -5,10 +5,9 @@ import { InfoCard, InfoRow, InfoLink } from '@/components/projects/InfoCard';
 import {
   DatesTab,
   DocumentsTab,
-  EstimatesTab,
-  PaymentsTab,
   TasksTab,
   NotesTab,
+  ExpensesTab,
 } from '@/components/projects/tabs';
 import {
   EditJobModal,
@@ -16,7 +15,12 @@ import {
   EstimateViewerModal,
   RecordPaymentModal,
   AddContactModal,
+  LaborEntryModal,
+  ReceiptModal,
+  WorkOrderModal,
 } from '@/components/projects/modals';
+import { AccountingModule } from '@/components/projects/accounting';
+import { EventViewer } from '@/components/projects/events';
 import {
   ArrowLeft,
   Phone,
@@ -30,19 +34,22 @@ import {
   Building,
   Calendar,
   FolderOpen,
-  FileText,
-  DollarSign,
   CheckSquare,
   MessageSquare,
   User,
+  Receipt as ReceiptIcon,
 } from 'lucide-react';
 import {
   useProject,
   useUpdateProjectStatus,
   useCreateNote,
-  useUpdateEstimate,
+  useActivityLog,
+  useToggleReadyToInvoice,
   type ProjectContact,
   type Estimate,
+  type LaborEntry,
+  type Receipt,
+  type WorkOrder,
 } from '@/hooks/useProjects';
 import { useState } from 'react';
 
@@ -88,6 +95,11 @@ function ContactCard({ contact }: { contact: ProjectContact }) {
           {contact.role_on_project && (
             <span className="text-muted-foreground font-normal"> ({contact.role_on_project})</span>
           )}
+          {contact.has_msa && (
+            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              MSA
+            </span>
+          )}
         </p>
         <p className="text-sm text-muted-foreground">
           {contact.organization_name || 'No organization'}
@@ -115,7 +127,8 @@ export function ProjectDetailPage() {
   const { data: project, isLoading, error } = useProject(projectId);
   const updateStatus = useUpdateProjectStatus();
   const createNote = useCreateNote();
-  const updateEstimate = useUpdateEstimate();
+  const { data: activityData, isLoading: activityLoading } = useActivityLog(projectId);
+  const toggleReadyToInvoice = useToggleReadyToInvoice();
 
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -124,6 +137,12 @@ export function ProjectDetailPage() {
   const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [showLaborModal, setShowLaborModal] = useState(false);
+  const [editingLabor, setEditingLabor] = useState<LaborEntry | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
+  const [showWorkOrderModal, setShowWorkOrderModal] = useState(false);
+  const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
 
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: projectId, status: newStatus });
@@ -134,14 +153,10 @@ export function ProjectDetailPage() {
     createNote.mutate({ projectId, content, noteType, subject });
   };
 
-  const handleApproveEstimate = (estimate: Estimate) => {
-    updateEstimate.mutate({
+  const handleToggleReadyToInvoice = () => {
+    toggleReadyToInvoice.mutate({
       projectId,
-      estimateId: estimate.id,
-      data: {
-        status: 'approved',
-        approved_date: new Date().toISOString().split('T')[0],
-      },
+      ready: !project?.ready_to_invoice,
     });
   };
 
@@ -161,225 +176,315 @@ export function ProjectDetailPage() {
     );
   }
 
+  // Filter contacts who are adjusters (primary, TPA, or role contains "adjuster")
+  const adjusters = (project.contacts || []).filter(c =>
+    c.is_primary_adjuster || c.is_tpa || c.role_on_project?.toLowerCase().includes('adjuster')
+  );
+
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-6 max-w-6xl mx-auto space-y-4">
+      <div className="p-6 max-w-7xl mx-auto">
         {/* Back link */}
         <Link
           to="/jobs"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Jobs
         </Link>
 
-        {/* Header Card */}
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              {getDamageIcon(project.damage_source)}
-              <div>
-                <h1 className="text-xl font-bold">{project.job_number}</h1>
-                <p className="text-lg">{project.client_name || 'No client assigned'}</p>
-                <p className="text-muted-foreground">
-                  {project.address}, {project.city}, {project.state} {project.zip}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                >
-                  <StatusBadge status={project.status} />
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-                {showStatusMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
-                    {['lead', 'pending', 'active', 'complete', 'closed', 'cancelled'].map((status) => (
-                      <button
-                        key={status}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => handleStatusChange(status)}
-                      >
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </button>
-                    ))}
+        {/* Main Grid Layout: Content (2 cols) + Sidebar (1 col) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Header Card */}
+            <div className="border rounded-lg p-4 bg-card">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  {getDamageIcon(project.damage_source)}
+                  <div>
+                    <h1 className="text-xl font-bold">{project.job_number}</h1>
+                    <p className="text-lg">{project.client_name || 'No client assigned'}</p>
+                    <p className="text-muted-foreground">
+                      {project.address}, {project.city}, {project.state} {project.zip}
+                    </p>
                   </div>
-                )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowStatusMenu(!showStatusMenu)}
+                    >
+                      <StatusBadge status={project.status} />
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                    {showStatusMenu && (
+                      <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+                        {['lead', 'pending', 'active', 'complete', 'closed', 'cancelled'].map((status) => (
+                          <button
+                            key={status}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                            onClick={() => handleStatusChange(status)}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+            </div>
+
+            {/* Info Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Client Card */}
+              <InfoCard title="Client">
+                {project.client ? (
+                  <>
+                    <p className="font-medium">{project.client.name}</p>
+                    {project.client.phone && (
+                      <InfoLink href={`tel:${project.client.phone}`} icon={<Phone className="h-3 w-3" />}>
+                        {project.client.phone}
+                      </InfoLink>
+                    )}
+                    {project.client.email && (
+                      <InfoLink href={`mailto:${project.client.email}`} icon={<Mail className="h-3 w-3" />} className="truncate">
+                        {project.client.email}
+                      </InfoLink>
+                    )}
+                    {project.client.address && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {project.client.address}
+                        {(project.client.city || project.client.state || project.client.zip) && <br />}
+                        {[project.client.city, project.client.state].filter(Boolean).join(', ')} {project.client.zip}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No client assigned</p>
+                )}
+              </InfoCard>
+
+              {/* Insurance Card */}
+              <InfoCard title="Insurance">
+                {project.carrier ? (
+                  <>
+                    <p className="font-medium">{project.carrier.name}</p>
+                    {project.claim_number && <InfoRow label="Claim">{project.claim_number}</InfoRow>}
+                    {project.policy_number && <InfoRow label="Policy">{project.policy_number}</InfoRow>}
+                    {project.deductible != null && (
+                      <InfoRow label="Deductible">
+                        ${project.deductible.toLocaleString()}
+                      </InfoRow>
+                    )}
+                    {/* Adjusters */}
+                    {adjusters.length > 0 && (
+                      <div className="mt-2 pt-2 border-t space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase">
+                          Adjuster{adjusters.length > 1 ? 's' : ''}
+                        </p>
+                        {adjusters.map(adj => (
+                          <div key={adj.id} className="text-sm">
+                            <p className="font-medium">
+                              {adj.first_name} {adj.last_name}
+                              {adj.is_primary_adjuster && (
+                                <span className="ml-1 text-xs text-green-600">(Primary)</span>
+                              )}
+                              {adj.is_tpa && (
+                                <span className="ml-1 text-xs text-purple-600">(TPA)</span>
+                              )}
+                            </p>
+                            {adj.phone && (
+                              <InfoLink href={`tel:${adj.phone}`} icon={<Phone className="h-3 w-3" />}>
+                                {adj.phone}
+                              </InfoLink>
+                            )}
+                            {adj.email && (
+                              <InfoLink href={`mailto:${adj.email}`} icon={<Mail className="h-3 w-3" />} className="truncate">
+                                {adj.email}
+                              </InfoLink>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No insurance carrier</p>
+                )}
+              </InfoCard>
+
+              {/* Property Card */}
+              <InfoCard title="Property">
+                {project.address && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {project.address}
+                    {(project.city || project.state || project.zip) && <br />}
+                    {[project.city, project.state].filter(Boolean).join(', ')} {project.zip}
+                  </p>
+                )}
+                <p className="font-medium">
+                  {project.structure_type || 'Unknown'}
+                  {project.square_footage && ` | ${project.square_footage.toLocaleString()} sqft`}
+                </p>
+                {project.year_built && <InfoRow label="Built">{project.year_built}</InfoRow>}
+                <div className="flex gap-4 text-sm">
+                  {project.damage_category && (
+                    <span className="text-muted-foreground">
+                      Cat {project.damage_category}
+                    </span>
+                  )}
+                  {project.damage_class && (
+                    <span className="text-muted-foreground">
+                      Class {project.damage_class}
+                    </span>
+                  )}
+                </div>
+                <InfoRow label="Source">{project.damage_source || 'Unknown'}</InfoRow>
+              </InfoCard>
+            </div>
+
+            {/* Main Tabbed Action Card */}
+            <div className="border rounded-lg bg-card">
+              <Tabs defaultValue="dates">
+                <div className="border-b px-4 pt-2">
+                  <TabsList className="bg-transparent gap-1">
+                    <TabsTrigger value="dates" className="gap-1.5">
+                      <Calendar className="h-4 w-4" />
+                      Dates
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="gap-1.5">
+                      <FolderOpen className="h-4 w-4" />
+                      Documents
+                    </TabsTrigger>
+                    <TabsTrigger value="tasks" className="gap-1.5">
+                      <CheckSquare className="h-4 w-4" />
+                      Tasks
+                    </TabsTrigger>
+                    <TabsTrigger value="notes" className="gap-1.5">
+                      <MessageSquare className="h-4 w-4" />
+                      Notes
+                    </TabsTrigger>
+                    <TabsTrigger value="expenses" className="gap-1.5">
+                      <ReceiptIcon className="h-4 w-4" />
+                      Expenses
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="dates" className="m-0">
+                  <DatesTab project={project} />
+                </TabsContent>
+
+                <TabsContent value="documents" className="m-0">
+                  <DocumentsTab projectId={projectId} media={project.media || []} />
+                </TabsContent>
+
+                <TabsContent value="tasks" className="m-0">
+                  <TasksTab projectId={projectId} />
+                </TabsContent>
+
+                <TabsContent value="notes" className="m-0">
+                  <NotesTab
+                    notes={project.notes || []}
+                    onAddNote={handleAddNote}
+                    isAddingNote={createNote.isPending}
+                  />
+                </TabsContent>
+
+                <TabsContent value="expenses" className="m-0">
+                  <ExpensesTab
+                    laborEntries={project.labor_entries || []}
+                    receipts={project.receipts || []}
+                    workOrders={project.work_orders || []}
+                    onAddLabor={() => {
+                      setEditingLabor(null);
+                      setShowLaborModal(true);
+                    }}
+                    onEditLabor={(entry) => {
+                      setEditingLabor(entry);
+                      setShowLaborModal(true);
+                    }}
+                    onAddReceipt={() => {
+                      setEditingReceipt(null);
+                      setShowReceiptModal(true);
+                    }}
+                    onEditReceipt={(receipt) => {
+                      setEditingReceipt(receipt);
+                      setShowReceiptModal(true);
+                    }}
+                    onAddWorkOrder={() => {
+                      setEditingWorkOrder(null);
+                      setShowWorkOrderModal(true);
+                    }}
+                    onEditWorkOrder={(workOrder) => {
+                      setEditingWorkOrder(workOrder);
+                      setShowWorkOrderModal(true);
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Contacts Card */}
+            <div className="border rounded-lg p-4 bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-semibold">Assigned Contacts</h3>
+                  <span className="text-sm text-muted-foreground">
+                    ({project.contacts?.length || 0})
+                  </span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowAddContactModal(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Contact
+                </Button>
+              </div>
+              {project.contacts?.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {project.contacts.map((contact) => (
+                    <ContactCard key={contact.id} contact={contact} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No contacts assigned to this project</p>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Info Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Client Card */}
-          <InfoCard title="Client">
-            {project.client ? (
-              <>
-                <p className="font-medium">{project.client.name}</p>
-                {project.client.phone && (
-                  <InfoLink href={`tel:${project.client.phone}`} icon={<Phone className="h-3 w-3" />}>
-                    {project.client.phone}
-                  </InfoLink>
-                )}
-                {project.client.email && (
-                  <InfoLink href={`mailto:${project.client.email}`} icon={<Mail className="h-3 w-3" />}>
-                    {project.client.email}
-                  </InfoLink>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">No client assigned</p>
-            )}
-          </InfoCard>
+          {/* Sidebar */}
+          <div className="space-y-4">
+            {/* Accounting Module */}
+            <AccountingModule
+              summary={project.accounting_summary}
+              estimates={project.estimates || []}
+              payments={project.payments || []}
+              laborEntries={project.labor_entries || []}
+              receipts={project.receipts || []}
+              readyToInvoice={project.ready_to_invoice}
+              onAddEstimate={() => setShowAddEstimateModal(true)}
+              onAddReceipt={() => setShowReceiptModal(true)}
+              onAddLabor={() => setShowLaborModal(true)}
+              onAddWorkOrder={() => setShowWorkOrderModal(true)}
+              onToggleReadyToInvoice={handleToggleReadyToInvoice}
+              isToggling={toggleReadyToInvoice.isPending}
+              isLoading={isLoading}
+            />
 
-          {/* Insurance Card */}
-          <InfoCard title="Insurance">
-            {project.carrier ? (
-              <>
-                <p className="font-medium">{project.carrier.name}</p>
-                {project.claim_number && <InfoRow label="Claim">{project.claim_number}</InfoRow>}
-                {project.policy_number && <InfoRow label="Policy">{project.policy_number}</InfoRow>}
-                {project.deductible && (
-                  <InfoRow label="Deductible">
-                    ${project.deductible.toLocaleString()}
-                  </InfoRow>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">No insurance carrier</p>
-            )}
-          </InfoCard>
-
-          {/* Property Card */}
-          <InfoCard title="Property">
-            <p className="font-medium">
-              {project.structure_type || 'Unknown'}
-              {project.square_footage && ` | ${project.square_footage.toLocaleString()} sqft`}
-            </p>
-            {project.year_built && <InfoRow label="Built">{project.year_built}</InfoRow>}
-            <div className="flex gap-4 text-sm">
-              {project.damage_category && (
-                <span className="text-muted-foreground">
-                  Cat {project.damage_category}
-                </span>
-              )}
-              {project.damage_class && (
-                <span className="text-muted-foreground">
-                  Class {project.damage_class}
-                </span>
-              )}
-            </div>
-            <InfoRow label="Source">{project.damage_source || 'Unknown'}</InfoRow>
-          </InfoCard>
-        </div>
-
-        {/* Main Tabbed Action Card */}
-        <div className="border rounded-lg bg-card">
-          <Tabs defaultValue="dates">
-            <div className="border-b px-4 pt-2">
-              <TabsList className="bg-transparent gap-1">
-                <TabsTrigger value="dates" className="gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  Dates
-                </TabsTrigger>
-                <TabsTrigger value="documents" className="gap-1.5">
-                  <FolderOpen className="h-4 w-4" />
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger value="estimates" className="gap-1.5">
-                  <FileText className="h-4 w-4" />
-                  Estimates
-                </TabsTrigger>
-                <TabsTrigger value="payments" className="gap-1.5">
-                  <DollarSign className="h-4 w-4" />
-                  Payments
-                </TabsTrigger>
-                <TabsTrigger value="tasks" className="gap-1.5">
-                  <CheckSquare className="h-4 w-4" />
-                  Tasks
-                </TabsTrigger>
-                <TabsTrigger value="notes" className="gap-1.5">
-                  <MessageSquare className="h-4 w-4" />
-                  Notes
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="dates" className="m-0">
-              <DatesTab project={project} />
-            </TabsContent>
-
-            <TabsContent value="documents" className="m-0">
-              <DocumentsTab projectId={projectId} media={project.media || []} />
-            </TabsContent>
-
-            <TabsContent value="estimates" className="m-0">
-              <EstimatesTab
-                estimates={project.estimates || []}
-                onAddEstimate={() => setShowAddEstimateModal(true)}
-                onAddRevision={(estimate) => {
-                  setRevisionEstimate(estimate);
-                  setShowAddEstimateModal(true);
-                }}
-                onViewEstimate={(estimate) => setViewingEstimate(estimate)}
-                onApproveEstimate={handleApproveEstimate}
-              />
-            </TabsContent>
-
-            <TabsContent value="payments" className="m-0">
-              <PaymentsTab
-                payments={project.payments || []}
-                onAddPayment={() => setShowRecordPaymentModal(true)}
-              />
-            </TabsContent>
-
-            <TabsContent value="tasks" className="m-0">
-              <TasksTab projectId={projectId} />
-            </TabsContent>
-
-            <TabsContent value="notes" className="m-0">
-              <NotesTab
-                notes={project.notes || []}
-                onAddNote={handleAddNote}
-                isAddingNote={createNote.isPending}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Contacts Card (Always visible) */}
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold">Assigned Contacts</h3>
-              <span className="text-sm text-muted-foreground">
-                ({project.contacts?.length || 0})
-              </span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowAddContactModal(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add Contact
-            </Button>
+            {/* Event Viewer */}
+            <EventViewer
+              events={activityData?.activities || []}
+              isLoading={activityLoading}
+            />
           </div>
-          {project.contacts?.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {project.contacts.map((contact) => (
-                <ContactCard key={contact.id} contact={contact} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No contacts assigned to this project</p>
-          )}
         </div>
       </div>
 
@@ -420,6 +525,39 @@ export function ProjectDetailPage() {
         <EstimateViewerModal
           estimate={viewingEstimate}
           onClose={() => setViewingEstimate(null)}
+        />
+      )}
+
+      {showLaborModal && (
+        <LaborEntryModal
+          projectId={projectId}
+          entry={editingLabor || undefined}
+          onClose={() => {
+            setShowLaborModal(false);
+            setEditingLabor(null);
+          }}
+        />
+      )}
+
+      {showReceiptModal && (
+        <ReceiptModal
+          projectId={projectId}
+          receipt={editingReceipt || undefined}
+          onClose={() => {
+            setShowReceiptModal(false);
+            setEditingReceipt(null);
+          }}
+        />
+      )}
+
+      {showWorkOrderModal && (
+        <WorkOrderModal
+          projectId={projectId}
+          workOrder={editingWorkOrder || undefined}
+          onClose={() => {
+            setShowWorkOrderModal(false);
+            setEditingWorkOrder(null);
+          }}
         />
       )}
     </div>

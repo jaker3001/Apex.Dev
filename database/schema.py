@@ -85,6 +85,25 @@ def init_database(db_path: Optional[Path] = None) -> None:
     """)
 
     # =========================================================================
+    # USERS TABLE
+    # Multi-user authentication with role-based access
+    # =========================================================================
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            role TEXT DEFAULT 'employee' CHECK (role IN ('admin', 'manager', 'employee')),
+            is_active INTEGER DEFAULT 1,
+            contact_id INTEGER,  -- Optional link to apex_operations contacts
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_login DATETIME,
+            preferences TEXT  -- JSON for user preferences
+        )
+    """)
+
+    # =========================================================================
     # MESSAGES TABLE
     # Individual messages within conversations with model tracking
     # =========================================================================
@@ -269,6 +288,12 @@ def _run_migrations(cursor: sqlite3.Cursor) -> None:
     if "chat_project_id" not in existing_columns:
         cursor.execute("ALTER TABLE conversations ADD COLUMN chat_project_id INTEGER REFERENCES chat_projects(id)")
         print("Migration: Added 'chat_project_id' column to conversations")
+
+    # Add user_id column if missing (for multi-user conversation isolation)
+    if "user_id" not in existing_columns:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN user_id INTEGER REFERENCES users(id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)")
+        print("Migration: Added 'user_id' column to conversations")
 
     # Check which columns exist in chat_projects table
     cursor.execute("PRAGMA table_info(chat_projects)")

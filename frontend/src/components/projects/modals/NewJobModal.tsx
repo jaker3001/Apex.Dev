@@ -4,19 +4,11 @@ import { BaseModal } from './BaseModal';
 import { useCreateProject, useGenerateJobNumber, useAssignContact } from '@/hooks/useProjects';
 import { useOrganizations, useContacts } from '@/hooks/useContacts';
 import { Wand2, Check, X, UserPlus } from 'lucide-react';
+import { JOB_TYPES } from '@/lib/constants';
 
 interface NewJobModalProps {
   onClose: () => void;
 }
-
-// Job types with their acronyms
-const JOB_TYPES = [
-  { value: 'mitigation', label: 'Mitigation', acronym: 'MIT' },
-  { value: 'reconstruction', label: 'Reconstruction', acronym: 'RPR' },
-  { value: 'remodel', label: 'Remodel', acronym: 'RMD' },
-  { value: 'abatement', label: 'Abatement', acronym: 'ABT' },
-  { value: 'remediation', label: 'Remediation', acronym: 'REM' },
-];
 
 const DAMAGE_SOURCES = ['water', 'fire', 'smoke', 'mold', 'sewage', 'flood', 'storm', 'other'];
 const DAMAGE_CATEGORIES = [
