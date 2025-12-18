@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../lib/api';
 
 // Types
 export interface Project {

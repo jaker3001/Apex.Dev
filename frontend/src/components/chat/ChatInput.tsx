@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { FilePreviewList } from './FilePreview';
 import { ChatToolsMenu } from './ChatToolsMenu';
 import type { AttachedFile } from '@/hooks/useChat';
+import { API_BASE } from '@/lib/api';
 
 // Allowed file types
 const ALLOWED_EXTENSIONS = [
@@ -109,7 +110,7 @@ export function ChatInput({
           formData.append('file', file);
           formData.append('session_id', sessionId);
 
-          const response = await fetch('http://localhost:8000/api/chat/upload', {
+          const response = await fetch(`${API_BASE}/chat/upload`, {
             method: 'POST',
             body: formData,
           });

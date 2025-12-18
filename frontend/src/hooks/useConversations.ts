@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '../lib/api';
 
 export interface ConversationPreview {
   id: number;
@@ -36,7 +37,7 @@ export function useConversations(options: UseConversationsOptions = {}) {
         include_inactive: includeInactive.toString(),
       });
 
-      const response = await fetch(`http://localhost:8000/api/conversations?${params}`);
+      const response = await fetch(`${API_BASE}/conversations?${params}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch conversations: ${response.statusText}`);
@@ -53,7 +54,7 @@ export function useConversations(options: UseConversationsOptions = {}) {
 
   const deleteConversation = useCallback(async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/conversations/${id}`, {
+      const response = await fetch(`${API_BASE}/conversations/${id}`, {
         method: 'DELETE',
       });
 
@@ -72,7 +73,7 @@ export function useConversations(options: UseConversationsOptions = {}) {
 
   const getConversation = useCallback(async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/conversations/${id}`);
+      const response = await fetch(`${API_BASE}/conversations/${id}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch conversation: ${response.statusText}`);
@@ -88,7 +89,7 @@ export function useConversations(options: UseConversationsOptions = {}) {
   const getMessages = useCallback(async (id: number, limit?: number) => {
     try {
       const params = limit ? `?limit=${limit}` : '';
-      const response = await fetch(`http://localhost:8000/api/conversations/${id}/messages${params}`);
+      const response = await fetch(`${API_BASE}/conversations/${id}/messages${params}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch messages: ${response.statusText}`);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthHeader } from './useAuth';
+import { API_BASE } from '../lib/api';
 
 export interface Agent {
   id: number;
@@ -33,7 +34,7 @@ export function useAgents(options: UseAgentsOptions = {}) {
         active_only: activeOnly.toString(),
       });
 
-      const response = await fetch(`http://localhost:8000/api/agents?${params}`, {
+      const response = await fetch(`${API_BASE}/agents?${params}`, {
         headers: {
           ...getAuthHeader(),
         },
@@ -58,7 +59,7 @@ export function useAgents(options: UseAgentsOptions = {}) {
     capabilities?: string[];
   }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/agents', {
+      const response = await fetch('${API_BASE}/agents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ export function useAgents(options: UseAgentsOptions = {}) {
 
   const deleteAgent = useCallback(async (name: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/agents/${encodeURIComponent(name)}`, {
+      const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}`, {
         method: 'DELETE',
         headers: {
           ...getAuthHeader(),
@@ -109,7 +110,7 @@ export function useAgents(options: UseAgentsOptions = {}) {
     is_active?: boolean;
   }) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/agents/${encodeURIComponent(name)}`, {
+      const response = await fetch(`${API_BASE}/agents/${encodeURIComponent(name)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

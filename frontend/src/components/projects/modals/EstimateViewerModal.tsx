@@ -2,13 +2,12 @@ import { useState, useRef, useCallback } from 'react';
 import { X, Calendar, DollarSign, Tag, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUploadEstimateFile, useUpdateEstimate, type Estimate } from '@/hooks/useProjects';
+import { API_BASE } from '@/lib/api';
 
 interface EstimateViewerModalProps {
   estimate: Estimate;
   onClose: () => void;
 }
-
-const API_BASE = 'http://localhost:8000/api';
 
 function formatCurrency(amount?: number): string {
   if (amount === undefined || amount === null) return '$0.00';

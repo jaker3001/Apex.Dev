@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthHeader } from './useAuth';
+import { API_BASE } from '../lib/api';
 
 export interface Skill {
   id: number;
@@ -40,7 +41,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/skills', {
+      const response = await fetch('${API_BASE}/skills', {
         headers: {
           ...getAuthHeader(),
         },
@@ -61,7 +62,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
 
   const fetchTemplates = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/skills/templates', {
+      const response = await fetch('${API_BASE}/skills/templates', {
         headers: {
           ...getAuthHeader(),
         },
@@ -87,7 +88,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
     tools_allowed?: string[];
   }): Promise<Skill | null> => {
     try {
-      const response = await fetch('http://localhost:8000/api/skills', {
+      const response = await fetch('${API_BASE}/skills', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,8 +113,8 @@ export function useSkills(options: UseSkillsOptions = {}) {
   const createFromTemplate = useCallback(async (templateId: string, name?: string): Promise<Skill | null> => {
     try {
       const url = name
-        ? `http://localhost:8000/api/skills/from-template/${templateId}?name=${encodeURIComponent(name)}`
-        : `http://localhost:8000/api/skills/from-template/${templateId}`;
+        ? `${API_BASE}/skills/from-template/${templateId}?name=${encodeURIComponent(name)}`
+        : `${API_BASE}/skills/from-template/${templateId}`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -137,7 +138,7 @@ export function useSkills(options: UseSkillsOptions = {}) {
 
   const deleteSkill = useCallback(async (id: number): Promise<boolean> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/skills/${id}`, {
+      const response = await fetch(`${API_BASE}/skills/${id}`, {
         method: 'DELETE',
         headers: {
           ...getAuthHeader(),

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { WS_BASE } from '../lib/api';
 
 // Types for chat messages and events
 export interface ToolUse {
@@ -132,7 +133,7 @@ export function useChat(options: UseChatOptions = {}) {
     setSessionId(newSessionId);
 
     // Build WebSocket URL with optional conversation_id, chat_project_id, and auth token
-    let wsUrl = `ws://localhost:8000/api/ws/chat/${newSessionId}`;
+    let wsUrl = `${WS_BASE}/api/ws/chat/${newSessionId}`;
     const params = new URLSearchParams();
     
     // Add auth token
@@ -497,9 +498,9 @@ export function useChat(options: UseChatOptions = {}) {
     const newSessionId = generateSessionId();
     setSessionId(newSessionId);
 
-    let wsUrl = `ws://localhost:8000/api/ws/chat/${newSessionId}`;
+    let wsUrl = `${WS_BASE}/api/ws/chat/${newSessionId}`;
     const params = new URLSearchParams();
-    
+
     // Add auth token
     const token = localStorage.getItem('apex_auth_token');
     if (token) {

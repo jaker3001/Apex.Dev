@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthHeader } from './useAuth';
+import { API_BASE } from '../lib/api';
 
 export interface ChatProject {
   id: number;
@@ -28,7 +29,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat-projects', {
+      const response = await fetch('${API_BASE}/chat-projects', {
         headers: {
           ...getAuthHeader(),
         },
@@ -55,7 +56,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
     linked_job_number?: string;
   }): Promise<ChatProject | null> => {
     try {
-      const response = await fetch('http://localhost:8000/api/chat-projects', {
+      const response = await fetch('${API_BASE}/chat-projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +87,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
     linked_job_number?: string;
   }): Promise<ChatProject | null> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/chat-projects/${id}`, {
+      const response = await fetch(`${API_BASE}/chat-projects/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export function useChatProjects(options: UseChatProjectsOptions = {}) {
 
   const deleteProject = useCallback(async (id: number): Promise<boolean> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/chat-projects/${id}`, {
+      const response = await fetch(`${API_BASE}/chat-projects/${id}`, {
         method: 'DELETE',
         headers: {
           ...getAuthHeader(),

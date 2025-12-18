@@ -73,7 +73,7 @@ const SERVER_TYPE_INFO = [
   },
 ];
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../lib/api';
 
 // Transform backend response to frontend format
 function transformServer(backend: BackendMCPServer): MCPServer {

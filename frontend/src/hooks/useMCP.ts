@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthHeader } from './useAuth';
+import { API_BASE } from '../lib/api';
 
 export interface MCPServerConfig {
   command?: string;
@@ -40,7 +41,7 @@ export function useMCP(options: UseMCPOptions = {}) {
       const params = new URLSearchParams();
       if (activeOnly) params.set('active_only', 'true');
 
-      const response = await fetch(`http://localhost:8000/api/mcp?${params}`, {
+      const response = await fetch(`${API_BASE}/mcp?${params}`, {
         headers: {
           ...getAuthHeader(),
         },
@@ -61,7 +62,7 @@ export function useMCP(options: UseMCPOptions = {}) {
 
   const enableServer = useCallback(async (name: string): Promise<boolean> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/mcp/${encodeURIComponent(name)}/enable`, {
+      const response = await fetch(`${API_BASE}/mcp/${encodeURIComponent(name)}/enable`, {
         method: 'POST',
         headers: {
           ...getAuthHeader(),
@@ -85,7 +86,7 @@ export function useMCP(options: UseMCPOptions = {}) {
 
   const disableServer = useCallback(async (name: string): Promise<boolean> => {
     try {
-      const response = await fetch(`http://localhost:8000/api/mcp/${encodeURIComponent(name)}/disable`, {
+      const response = await fetch(`${API_BASE}/mcp/${encodeURIComponent(name)}/disable`, {
         method: 'POST',
         headers: {
           ...getAuthHeader(),
