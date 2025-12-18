@@ -41,7 +41,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import init_database, init_apex_ops_database
-from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts
+from database.schema_hub import init_hub_tables
+from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts, tasks
+from api.routes import inbox, notifications, time_tracking, calendar, weather
 
 
 @asynccontextmanager
@@ -52,6 +54,8 @@ async def lifespan(app: FastAPI):
     logger.info("Assistant database initialized")
     init_apex_ops_database()
     logger.info("Operations database initialized")
+    init_hub_tables()
+    logger.info("Hub tables initialized")
     yield
     # Shutdown
     logger.info("Shutting down API server")
@@ -100,6 +104,12 @@ app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 app.include_router(projects.router, prefix="/api", tags=["projects"])
 app.include_router(contacts.router, prefix="/api", tags=["contacts"])
 app.include_router(chat_projects.router, prefix="/api", tags=["chat-projects"])
+app.include_router(tasks.router, prefix="/api", tags=["tasks"])
+app.include_router(inbox.router, prefix="/api", tags=["inbox"])
+app.include_router(notifications.router, prefix="/api", tags=["notifications"])
+app.include_router(time_tracking.router, prefix="/api", tags=["time"])
+app.include_router(calendar.router, prefix="/api", tags=["calendar"])
+app.include_router(weather.router, prefix="/api", tags=["weather"])
 
 # Serve static frontend files in production (must be last to not override API routes)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
