@@ -239,7 +239,6 @@ export function useDeleteNote() {
 }
 
 export function useSearchNotes() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ query, limit }: { query: string; limit?: number }) =>
       searchNotes(query, limit),

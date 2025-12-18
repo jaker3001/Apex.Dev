@@ -435,6 +435,12 @@ export function useTimeEntries(params?: { start_date?: string; end_date?: string
 // CALENDAR HOOKS
 // =============================================================================
 
+// Helper to check if user is authenticated
+function isAuthenticated(): boolean {
+  const headers = getAuthHeader();
+  return 'Authorization' in headers;
+}
+
 async function fetchCalendarEvents(params?: {
   start_date?: string;
   end_date?: string;
@@ -462,6 +468,94 @@ export function useCalendarEvents(params?: { start_date?: string; end_date?: str
     queryKey: ['calendarEvents', params],
     queryFn: () => fetchCalendarEvents(params),
     refetchInterval: 300000, // Refresh every 5 minutes
+    enabled: isAuthenticated(), // Only fetch when authenticated
+    retry: 2,
+  });
+}
+
+// Calendar event creation
+export interface CalendarEventCreateInput {
+  summary: string;
+  description?: string;
+  location?: string;
+  start: string;
+  end: string;
+  all_day?: boolean;
+  attendees?: string[];
+}
+
+async function createCalendarEvent(event: CalendarEventCreateInput): Promise<CalendarEvent> {
+  const res = await fetch(`${API_BASE}/api/calendar/events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || 'Failed to create event');
+  }
+  return res.json();
+}
+
+export function useCreateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createCalendarEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarEvents'] });
+    },
+  });
+}
+
+// Calendar event update
+async function updateCalendarEvent(params: { id: string; event: Partial<CalendarEventCreateInput> }): Promise<CalendarEvent> {
+  const res = await fetch(`${API_BASE}/api/calendar/events/${params.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(params.event),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || 'Failed to update event');
+  }
+  return res.json();
+}
+
+export function useUpdateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateCalendarEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarEvents'] });
+    },
+  });
+}
+
+// Calendar event deletion
+async function deleteCalendarEvent(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/calendar/events/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || 'Failed to delete event');
+  }
+}
+
+export function useDeleteCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteCalendarEvent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarEvents'] });
+    },
   });
 }
 
@@ -501,6 +595,8 @@ export function useWeather(params?: { lat?: number; lon?: number; location?: str
     queryFn: () => fetchWeather(params),
     refetchInterval: 900000, // Refresh every 15 minutes
     staleTime: 600000, // Consider fresh for 10 minutes
+    enabled: isAuthenticated(), // Only fetch when authenticated
+    retry: 2, // Retry twice on failure
   });
 }
 

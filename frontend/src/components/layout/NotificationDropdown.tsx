@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Check, CheckCheck, X, AlertCircle, AtSign, Calendar, Info } from 'lucide-react';
+import { Bell, CheckCheck, AlertCircle, AtSign, Calendar, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useNotifications,

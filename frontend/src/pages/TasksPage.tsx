@@ -9,7 +9,7 @@ import {
   useAddToMyDay,
   useRemoveFromMyDay,
 } from '@/hooks/useTasks';
-import type { Task, TaskList, TaskFilters } from '@/hooks/useTasks';
+import type { Task, TaskFilters } from '@/hooks/useTasks';
 import {
   Sun,
   Star,
@@ -18,20 +18,10 @@ import {
   List,
   Plus,
   Check,
-  Circle,
   Trash2,
-  ChevronRight,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Icon mapping for system lists
-const listIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  sun: Sun,
-  star: Star,
-  calendar: Calendar,
-  inbox: Inbox,
-};
 
 export function TasksPage() {
   const [selectedView, setSelectedView] = useState<'my_day' | 'important' | 'planned' | 'inbox' | number>('my_day');
@@ -277,7 +267,9 @@ function SidebarItem({ icon: Icon, label, count, isSelected, onClick, color }: S
           : 'text-slate-300 hover:bg-slate-700 hover:text-white'
       )}
     >
-      <Icon className="w-4 h-4" style={color ? { color } : undefined} />
+      <span style={color ? { color } : undefined}>
+        <Icon className="w-4 h-4" />
+      </span>
       <span className="flex-1 text-left">{label}</span>
       {count !== undefined && count > 0 && (
         <span className="text-xs text-slate-500">{count}</span>

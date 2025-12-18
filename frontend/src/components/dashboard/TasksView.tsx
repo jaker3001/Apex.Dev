@@ -258,7 +258,9 @@ function TaskListItem({ icon: Icon, label, count, isSelected, onClick, color }: 
           : 'text-slate-300 hover:bg-slate-700 hover:text-white'
       )}
     >
-      <Icon className="w-4 h-4" style={color ? { color } : undefined} />
+      <span style={color ? { color } : undefined}>
+        <Icon className="w-4 h-4" />
+      </span>
       <span className="flex-1 text-left">{label}</span>
       {count !== undefined && count > 0 && (
         <span className="text-xs text-slate-500">{count}</span>

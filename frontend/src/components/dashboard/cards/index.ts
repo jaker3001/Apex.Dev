@@ -5,3 +5,5 @@ export { PersonalTasksCard } from './PersonalTasksCard';
 export { RecentJobsCard } from './RecentJobsCard';
 export { ActiveTasksCard } from './ActiveTasksCard';
 export { NotificationsCard } from './NotificationsCard';
+export { MyDayCard } from './MyDayCard';
+export { TeamChatCard } from './TeamChatCard';

@@ -26,10 +26,9 @@ import {
   useCreateFolder,
   useBacklinks,
   type FileSystemItem,
-  type NoteMetadata,
 } from '@/hooks/usePKM';
 import { EditorState } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, ViewUpdate } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -76,7 +75,7 @@ export function NotesView() {
         markdown(),
         oneDark,
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        EditorView.updateListener.of((update) => {
+        EditorView.updateListener.of((update: ViewUpdate) => {
           if (update.docChanged) {
             const newContent = update.state.doc.toString();
             setEditorContent(newContent);
