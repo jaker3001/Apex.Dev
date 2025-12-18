@@ -42,8 +42,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import init_database, init_apex_ops_database
 from database.schema_hub import init_hub_tables
+from database.schema_pkm import init_pkm_tables
 from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts, tasks
-from api.routes import inbox, notifications, time_tracking, calendar, weather
+from api.routes import inbox, notifications, time_tracking, calendar, weather, pkm
 
 
 @asynccontextmanager
@@ -56,6 +57,8 @@ async def lifespan(app: FastAPI):
     logger.info("Operations database initialized")
     init_hub_tables()
     logger.info("Hub tables initialized")
+    init_pkm_tables()
+    logger.info("PKM tables initialized")
     yield
     # Shutdown
     logger.info("Shutting down API server")
@@ -110,6 +113,7 @@ app.include_router(notifications.router, prefix="/api", tags=["notifications"])
 app.include_router(time_tracking.router, prefix="/api", tags=["time"])
 app.include_router(calendar.router, prefix="/api", tags=["calendar"])
 app.include_router(weather.router, prefix="/api", tags=["weather"])
+app.include_router(pkm.router, prefix="/api", tags=["pkm"])
 
 # Serve static frontend files in production (must be last to not override API routes)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

@@ -516,6 +516,8 @@ class ProjectContactCreate(BaseModel):
     role_on_project: Optional[str] = None
     assigned_date: Optional[str] = None
     notes: Optional[str] = None
+    is_primary_adjuster: Optional[bool] = False
+    is_tpa: Optional[bool] = False
 
 
 class ProjectContactResponse(BaseModel):
@@ -534,8 +536,15 @@ class ProjectContactResponse(BaseModel):
     # From join with organizations
     organization_name: Optional[str] = None
     org_type: Optional[str] = None
+    # MSA fields from organization
+    has_msa: Optional[bool] = None
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    # Project contact assignment fields
     role_on_project: Optional[str] = None
     assignment_id: Optional[int] = None
+    is_primary_adjuster: Optional[bool] = None
+    is_tpa: Optional[bool] = None
 
     class Config:
         extra = "allow"
@@ -566,7 +575,14 @@ class ProjectContactDetail(BaseModel):
     created_at: Optional[str] = None
     organization_name: Optional[str] = None
     org_type: Optional[str] = None
+    # MSA fields from organization
+    has_msa: Optional[bool] = None
+    msa_signed_date: Optional[str] = None
+    msa_expiration_date: Optional[str] = None
+    # Project contact assignment fields
     role_on_project: Optional[str] = None
+    is_primary_adjuster: Optional[bool] = None
+    is_tpa: Optional[bool] = None
 
     class Config:
         extra = "allow"

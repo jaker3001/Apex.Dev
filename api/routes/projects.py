@@ -460,6 +460,8 @@ async def assign_contact(project_id: int, assignment: ProjectContactCreate):
         role_on_project=assignment.role_on_project,
         assigned_date=assignment.assigned_date,
         notes=assignment.notes,
+        is_primary_adjuster=assignment.is_primary_adjuster or False,
+        is_tpa=assignment.is_tpa or False,
     )
 
     # Get the contact details

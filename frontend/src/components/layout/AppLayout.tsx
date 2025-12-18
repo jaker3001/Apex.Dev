@@ -4,11 +4,12 @@ import { ChatSidebar } from './ChatSidebar';
 import { ProjectsSidebar } from './ProjectsSidebar';
 import { SettingsSidebar } from './SettingsSidebar';
 
-type ActiveSection = 'chat' | 'jobs' | 'settings';
+type ActiveSection = 'chat' | 'dashboard' | 'jobs' | 'settings';
 
 function getActiveSection(pathname: string): ActiveSection {
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/jobs')) return 'jobs';
+  if (pathname.startsWith('/dashboard')) return 'dashboard';
   return 'chat';
 }
 

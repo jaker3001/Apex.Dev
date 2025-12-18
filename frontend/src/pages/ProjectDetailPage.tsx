@@ -95,6 +95,11 @@ function ContactCard({ contact }: { contact: ProjectContact }) {
           {contact.role_on_project && (
             <span className="text-muted-foreground font-normal"> ({contact.role_on_project})</span>
           )}
+          {contact.has_msa && (
+            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              MSA
+            </span>
+          )}
         </p>
         <p className="text-sm text-muted-foreground">
           {contact.organization_name || 'No organization'}
@@ -171,6 +176,11 @@ export function ProjectDetailPage() {
     );
   }
 
+  // Filter contacts who are adjusters (primary, TPA, or role contains "adjuster")
+  const adjusters = (project.contacts || []).filter(c =>
+    c.is_primary_adjuster || c.is_tpa || c.role_on_project?.toLowerCase().includes('adjuster')
+  );
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6 max-w-7xl mx-auto">
@@ -245,9 +255,16 @@ export function ProjectDetailPage() {
                       </InfoLink>
                     )}
                     {project.client.email && (
-                      <InfoLink href={`mailto:${project.client.email}`} icon={<Mail className="h-3 w-3" />}>
+                      <InfoLink href={`mailto:${project.client.email}`} icon={<Mail className="h-3 w-3" />} className="truncate">
                         {project.client.email}
                       </InfoLink>
+                    )}
+                    {project.client.address && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {project.client.address}
+                        {(project.client.city || project.client.state || project.client.zip) && <br />}
+                        {[project.client.city, project.client.state].filter(Boolean).join(', ')} {project.client.zip}
+                      </p>
                     )}
                   </>
                 ) : (
@@ -262,10 +279,41 @@ export function ProjectDetailPage() {
                     <p className="font-medium">{project.carrier.name}</p>
                     {project.claim_number && <InfoRow label="Claim">{project.claim_number}</InfoRow>}
                     {project.policy_number && <InfoRow label="Policy">{project.policy_number}</InfoRow>}
-                    {project.deductible && (
+                    {project.deductible != null && (
                       <InfoRow label="Deductible">
                         ${project.deductible.toLocaleString()}
                       </InfoRow>
+                    )}
+                    {/* Adjusters */}
+                    {adjusters.length > 0 && (
+                      <div className="mt-2 pt-2 border-t space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase">
+                          Adjuster{adjusters.length > 1 ? 's' : ''}
+                        </p>
+                        {adjusters.map(adj => (
+                          <div key={adj.id} className="text-sm">
+                            <p className="font-medium">
+                              {adj.first_name} {adj.last_name}
+                              {adj.is_primary_adjuster && (
+                                <span className="ml-1 text-xs text-green-600">(Primary)</span>
+                              )}
+                              {adj.is_tpa && (
+                                <span className="ml-1 text-xs text-purple-600">(TPA)</span>
+                              )}
+                            </p>
+                            {adj.phone && (
+                              <InfoLink href={`tel:${adj.phone}`} icon={<Phone className="h-3 w-3" />}>
+                                {adj.phone}
+                              </InfoLink>
+                            )}
+                            {adj.email && (
+                              <InfoLink href={`mailto:${adj.email}`} icon={<Mail className="h-3 w-3" />} className="truncate">
+                                {adj.email}
+                              </InfoLink>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </>
                 ) : (
@@ -275,6 +323,13 @@ export function ProjectDetailPage() {
 
               {/* Property Card */}
               <InfoCard title="Property">
+                {project.address && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {project.address}
+                    {(project.city || project.state || project.zip) && <br />}
+                    {[project.city, project.state].filter(Boolean).join(', ')} {project.zip}
+                  </p>
+                )}
                 <p className="font-medium">
                   {project.structure_type || 'Unknown'}
                   {project.square_footage && ` | ${project.square_footage.toLocaleString()} sqft`}

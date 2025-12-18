@@ -553,6 +553,22 @@ def _run_ops_migrations(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE work_orders ADD COLUMN document_file_path TEXT")
         print("Migration: Added 'document_file_path' column to work_orders")
 
+    # =========================================================================
+    # PROJECT_CONTACTS MIGRATIONS - Adjuster flags
+    # =========================================================================
+    cursor.execute("PRAGMA table_info(project_contacts)")
+    pc_columns = {row[1] for row in cursor.fetchall()}
+
+    # Add is_primary_adjuster column if missing
+    if "is_primary_adjuster" not in pc_columns:
+        cursor.execute("ALTER TABLE project_contacts ADD COLUMN is_primary_adjuster INTEGER DEFAULT 0")
+        print("Migration: Added 'is_primary_adjuster' column to project_contacts")
+
+    # Add is_tpa column if missing
+    if "is_tpa" not in pc_columns:
+        cursor.execute("ALTER TABLE project_contacts ADD COLUMN is_tpa INTEGER DEFAULT 0")
+        print("Migration: Added 'is_tpa' column to project_contacts")
+
 
 if __name__ == "__main__":
     init_apex_ops_database()

@@ -505,12 +505,14 @@ def get_project_full(project_id: int) -> Optional[Dict[str, Any]]:
     # Get assigned contacts with organization info
     cursor.execute(
         """
-        SELECT c.*, org.name as organization_name, org.org_type, pc.role_on_project
+        SELECT c.*, org.name as organization_name, org.org_type,
+               org.has_msa, org.msa_signed_date, org.msa_expiration_date,
+               pc.role_on_project, pc.is_primary_adjuster, pc.is_tpa
         FROM project_contacts pc
         JOIN contacts c ON pc.contact_id = c.id
         LEFT JOIN organizations org ON c.organization_id = org.id
         WHERE pc.project_id = ?
-        ORDER BY pc.role_on_project, c.last_name
+        ORDER BY pc.is_primary_adjuster DESC, pc.role_on_project, c.last_name
         """,
         (project_id,)
     )
@@ -670,16 +672,19 @@ def assign_contact_to_project(
     role_on_project: Optional[str] = None,
     assigned_date: Optional[str] = None,
     notes: Optional[str] = None,
+    is_primary_adjuster: bool = False,
+    is_tpa: bool = False,
 ) -> int:
     """Assign a contact to a project."""
     conn = get_ops_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO project_contacts (project_id, contact_id, role_on_project, assigned_date, notes)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO project_contacts (project_id, contact_id, role_on_project, assigned_date, notes, is_primary_adjuster, is_tpa)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (project_id, contact_id, role_on_project, assigned_date or _get_timestamp(), notes)
+        (project_id, contact_id, role_on_project, assigned_date or _get_timestamp(), notes,
+         1 if is_primary_adjuster else 0, 1 if is_tpa else 0)
     )
     pc_id = cursor.lastrowid
     conn.commit()
@@ -693,12 +698,15 @@ def get_contacts_for_project(project_id: int) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT c.*, org.name as organization_name, org.org_type, pc.role_on_project, pc.id as assignment_id
+        SELECT c.*, org.name as organization_name, org.org_type,
+               org.has_msa, org.msa_signed_date, org.msa_expiration_date,
+               pc.role_on_project, pc.id as assignment_id,
+               pc.is_primary_adjuster, pc.is_tpa
         FROM project_contacts pc
         JOIN contacts c ON pc.contact_id = c.id
         LEFT JOIN organizations org ON c.organization_id = org.id
         WHERE pc.project_id = ?
-        ORDER BY pc.role_on_project, c.last_name
+        ORDER BY pc.is_primary_adjuster DESC, pc.role_on_project, c.last_name
         """,
         (project_id,)
     )

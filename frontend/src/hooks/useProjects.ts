@@ -88,8 +88,15 @@ export interface ProjectContact {
   created_at?: string;
   organization_name?: string;
   org_type?: string;
+  // MSA fields from organization
+  has_msa?: boolean;
+  msa_signed_date?: string;
+  msa_expiration_date?: string;
+  // Project contact assignment fields
   role_on_project?: string;
   assignment_id?: number;
+  is_primary_adjuster?: boolean;
+  is_tpa?: boolean;
 }
 
 export interface Note {

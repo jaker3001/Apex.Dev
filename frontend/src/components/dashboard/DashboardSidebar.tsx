@@ -10,6 +10,7 @@ import {
   Clock,
   Play,
   Square,
+  StickyNote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DashboardView, QuickCaptureType } from '@/pages/DashboardPage';
@@ -151,6 +152,12 @@ export function DashboardSidebar({
             label="My Tasks"
             isActive={activeView === 'tasks'}
             onClick={() => onViewChange('tasks')}
+          />
+          <ViewButton
+            icon={StickyNote}
+            label="Notes"
+            isActive={activeView === 'notes'}
+            onClick={() => onViewChange('notes')}
           />
         </div>
       </nav>
