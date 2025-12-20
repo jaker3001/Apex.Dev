@@ -8,11 +8,11 @@ interface InfoCardProps {
 
 export function InfoCard({ title, children, className }: InfoCardProps) {
   return (
-    <div className={cn("border rounded-lg p-4 bg-card", className)}>
-      <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+    <div className={cn("glass-card p-5", className)}>
+      <h3 className="text-xs font-bold text-muted-foreground/50 mb-3 uppercase tracking-widest">
         {title}
       </h3>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {children}
       </div>
     </div>

@@ -88,15 +88,15 @@ function getDamageIcon(source?: string) {
 // Contact card for the contacts section
 function ContactCard({ contact }: { contact: ProjectContact }) {
   return (
-    <div className="flex items-start justify-between p-3 border rounded-lg">
+    <div className="flex items-start justify-between p-3 bg-white/5 border border-white/5 rounded-lg hover:bg-white/10 transition-colors">
       <div>
-        <p className="font-medium">
+        <p className="font-medium text-foreground">
           {contact.first_name} {contact.last_name}
           {contact.role_on_project && (
             <span className="text-muted-foreground font-normal"> ({contact.role_on_project})</span>
           )}
           {contact.has_msa && (
-            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+            <span className="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold rounded-full">
               MSA
             </span>
           )}
@@ -107,13 +107,13 @@ function ContactCard({ contact }: { contact: ProjectContact }) {
       </div>
       <div className="flex gap-2">
         {contact.phone && (
-          <a href={`tel:${contact.phone}`} className="p-1.5 rounded hover:bg-muted">
-            <Phone className="h-4 w-4 text-muted-foreground" />
+          <a href={`tel:${contact.phone}`} className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors">
+            <Phone className="h-4 w-4" />
           </a>
         )}
         {contact.email && (
-          <a href={`mailto:${contact.email}`} className="p-1.5 rounded hover:bg-muted">
-            <Mail className="h-4 w-4 text-muted-foreground" />
+          <a href={`mailto:${contact.email}`} className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors">
+            <Mail className="h-4 w-4" />
           </a>
         )}
       </div>
@@ -198,14 +198,17 @@ export function ProjectDetailPage() {
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-4">
             {/* Header Card */}
-            <div className="border rounded-lg p-4 bg-card">
+            <div className="glass-card p-6">
               <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  {getDamageIcon(project.damage_source)}
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                    {getDamageIcon(project.damage_source)}
+                  </div>
                   <div>
-                    <h1 className="text-xl font-bold">{project.job_number}</h1>
-                    <p className="text-lg">{project.client_name || 'No client assigned'}</p>
-                    <p className="text-muted-foreground">
+                    <h1 className="text-2xl font-bold text-foreground mb-1">{project.job_number}</h1>
+                    <p className="text-lg font-medium text-foreground/90">{project.client_name || 'No client assigned'}</p>
+                    <p className="text-muted-foreground flex items-center gap-1.5 mt-1">
+                      <Building className="h-3.5 w-3.5" />
                       {project.address}, {project.city}, {project.state} {project.zip}
                     </p>
                   </div>
@@ -216,16 +219,17 @@ export function ProjectDetailPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowStatusMenu(!showStatusMenu)}
+                      className="bg-transparent border-white/10 hover:bg-white/5"
                     >
                       <StatusBadge status={project.status} />
-                      <ChevronDown className="h-4 w-4 ml-2" />
+                      <ChevronDown className="h-4 w-4 ml-2 text-muted-foreground" />
                     </Button>
                     {showStatusMenu && (
-                      <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+                      <div className="absolute right-0 top-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl py-1 z-10 min-w-[160px] overflow-hidden backdrop-blur-xl">
                         {['lead', 'pending', 'active', 'complete', 'closed', 'cancelled'].map((status) => (
                           <button
                             key={status}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/5 text-foreground transition-colors"
                             onClick={() => handleStatusChange(status)}
                           >
                             {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -234,7 +238,12 @@ export function ProjectDetailPage() {
                       </div>
                     )}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowEditModal(true)}
+                    className="bg-transparent border-white/10 hover:bg-white/5 text-muted-foreground hover:text-foreground"
+                  >
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
@@ -248,7 +257,7 @@ export function ProjectDetailPage() {
               <InfoCard title="Client">
                 {project.client ? (
                   <>
-                    <p className="font-medium">{project.client.name}</p>
+                    <p className="font-medium text-foreground">{project.client.name}</p>
                     {project.client.phone && (
                       <InfoLink href={`tel:${project.client.phone}`} icon={<Phone className="h-3 w-3" />}>
                         {project.client.phone}
@@ -352,46 +361,46 @@ export function ProjectDetailPage() {
             </div>
 
             {/* Main Tabbed Action Card */}
-            <div className="border rounded-lg bg-card">
+            <div className="glass-card overflow-hidden">
               <Tabs defaultValue="dates">
-                <div className="border-b px-4 pt-2">
+                <div className="border-b border-white/5 px-4 pt-2">
                   <TabsList className="bg-transparent gap-1">
-                    <TabsTrigger value="dates" className="gap-1.5">
+                    <TabsTrigger value="dates" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
                       <Calendar className="h-4 w-4" />
                       Dates
                     </TabsTrigger>
-                    <TabsTrigger value="documents" className="gap-1.5">
+                    <TabsTrigger value="documents" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
                       <FolderOpen className="h-4 w-4" />
                       Documents
                     </TabsTrigger>
-                    <TabsTrigger value="tasks" className="gap-1.5">
+                    <TabsTrigger value="tasks" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
                       <CheckSquare className="h-4 w-4" />
                       Tasks
                     </TabsTrigger>
-                    <TabsTrigger value="notes" className="gap-1.5">
+                    <TabsTrigger value="notes" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
                       <MessageSquare className="h-4 w-4" />
                       Notes
                     </TabsTrigger>
-                    <TabsTrigger value="expenses" className="gap-1.5">
+                    <TabsTrigger value="expenses" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
                       <ReceiptIcon className="h-4 w-4" />
                       Expenses
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
-                <TabsContent value="dates" className="m-0">
+                <TabsContent value="dates" className="m-0 bg-transparent">
                   <DatesTab project={project} />
                 </TabsContent>
 
-                <TabsContent value="documents" className="m-0">
+                <TabsContent value="documents" className="m-0 bg-transparent">
                   <DocumentsTab projectId={projectId} media={project.media || []} />
                 </TabsContent>
 
-                <TabsContent value="tasks" className="m-0">
+                <TabsContent value="tasks" className="m-0 bg-transparent">
                   <TasksTab projectId={projectId} />
                 </TabsContent>
 
-                <TabsContent value="notes" className="m-0">
+                <TabsContent value="notes" className="m-0 bg-transparent">
                   <NotesTab
                     notes={project.notes || []}
                     onAddNote={handleAddNote}
@@ -399,7 +408,7 @@ export function ProjectDetailPage() {
                   />
                 </TabsContent>
 
-                <TabsContent value="expenses" className="m-0">
+                <TabsContent value="expenses" className="m-0 bg-transparent">
                   <ExpensesTab
                     laborEntries={project.labor_entries || []}
                     receipts={project.receipts || []}
@@ -434,28 +443,33 @@ export function ProjectDetailPage() {
             </div>
 
             {/* Contacts Card */}
-            <div className="border rounded-lg p-4 bg-card">
-              <div className="flex items-center justify-between mb-3">
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold">Assigned Contacts</h3>
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">Assigned Contacts</h3>
                   <span className="text-sm text-muted-foreground">
                     ({project.contacts?.length || 0})
                   </span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setShowAddContactModal(true)}>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowAddContactModal(true)}
+                    className="text-muted-foreground hover:text-foreground"
+                >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Contact
                 </Button>
               </div>
               {project.contacts?.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {project.contacts.map((contact) => (
                     <ContactCard key={contact.id} contact={contact} />
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No contacts assigned to this project</p>
+                <p className="text-sm text-muted-foreground/60 italic">No contacts assigned to this project</p>
               )}
             </div>
           </div>

@@ -186,12 +186,16 @@
   "active": "cb44bd82f13232b9",
   "lastOpenFiles": [
     "frontend/dist/index.html",
-    "frontend/dist/assets/index-DrGsb_Kv.css",
-    "frontend/dist/assets/index-CBblgUZQ.js",
+    "frontend/dist/assets/index-DiU00_Vz.js",
+    "frontend/dist/assets/index-Bffvd5c5.css",
     "frontend/dist/assets",
-    "frontend/dist/vite.svg",
-    "frontend/dist",
-    "frontend/src/components/layout/QuickCaptureButton.tsx",
-    "frontend/src/components/layout/UnifiedSidebar.tsx"
+    "frontend/src/pages/SettingsLayout.tsx",
+    "frontend/dist/assets/index-FT22jyki.css",
+    "frontend/dist/assets/index-DgyH3FXl.js",
+    "frontend/dist/assets/index-MpnOg9h1.js",
+    "frontend/dist/assets/index-1wWHRgxx.css",
+    "frontend/src/components/chat/ChatHistory.tsx",
+    "frontend/dist/assets/index-WE80PwtM.js",
+    "frontend/dist/vite.svg"
   ]
 }

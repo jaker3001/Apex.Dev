@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2, LogIn, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -21,14 +22,18 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="w-full max-w-md p-8">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
+    <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] relative overflow-hidden">
+      {/* Background Ambient Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[128px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-600/10 rounded-full blur-[128px]" />
+
+      <div className="w-full max-w-md p-8 relative z-10">
+        <div className="glass-card rounded-2xl p-8">
           {/* Logo/Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-orange-600 mb-6 shadow-lg shadow-orange-900/20">
               <svg
-                className="w-8 h-8 text-blue-400"
+                className="w-8 h-8 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -36,27 +41,27 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   d="M13 10V3L4 14h7v7l9-11h-7z"
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-white">Apex Assistant</h1>
-            <p className="text-slate-400 mt-2">Sign in to continue</p>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Apex Assistant</h1>
+            <p className="text-muted-foreground mt-2">Sign in to your workspace</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <p className="text-red-200 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+              <p className="text-destructive-foreground text-sm">{error}</p>
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground">
                 Email
               </label>
               <input
@@ -64,15 +69,15 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="Enter your email"
                 required
                 disabled={isLoading}
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
                 Password
               </label>
               <input
@@ -80,35 +85,35 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="Enter your password"
                 required
                 disabled={isLoading}
               />
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full py-6 text-base font-semibold shadow-lg shadow-orange-900/20"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Signing in...
                 </>
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
                   Sign In
+                  <LogIn className="w-5 h-5 ml-2" />
                 </>
               )}
-            </button>
+            </Button>
           </form>
 
           {/* Footer */}
-          <p className="mt-8 text-center text-sm text-slate-500">
-            Apex Restoration LLC
+          <p className="mt-8 text-center text-sm text-muted-foreground/60">
+            &copy; {new Date().getFullYear()} Apex Restoration LLC
           </p>
         </div>
       </div>

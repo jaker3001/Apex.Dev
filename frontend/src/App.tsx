@@ -8,6 +8,7 @@ import { MCPPage } from './pages/MCPPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { LearnPage } from './pages/LearnPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SettingsLayout } from './pages/SettingsLayout';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -31,8 +32,8 @@ function AuthenticatedApp() {
   // Show loading spinner while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -47,24 +48,26 @@ function AuthenticatedApp() {
     <ChatProvider>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-        {/* Dashboard Section - Default */}
-        <Route index element={<DashboardPage />} />
+          {/* Dashboard Section - Default */}
+          <Route index element={<DashboardPage />} />
 
-        {/* Chat Section */}
-        <Route path="chat" element={<ChatPage />} />
+          {/* Chat Section */}
+          <Route path="chat" element={<ChatPage />} />
 
-        {/* Jobs Section */}
-        <Route path="jobs" element={<ProjectsPage />} />
-        <Route path="jobs/:id" element={<ProjectDetailPage />} />
+          {/* Jobs Section */}
+          <Route path="jobs" element={<ProjectsPage />} />
+          <Route path="jobs/:id" element={<ProjectDetailPage />} />
 
-        {/* Settings/Admin Section */}
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="settings/agents" element={<AgentsPage />} />
-        <Route path="settings/skills" element={<SkillsPage />} />
-        <Route path="settings/mcp" element={<MCPPage />} />
-        <Route path="settings/analytics" element={<AnalyticsPage />} />
-        <Route path="settings/learn" element={<LearnPage />} />
-      </Route>
+          {/* Settings Section with Layout */}
+          <Route path="settings" element={<SettingsLayout />}>
+            <Route index element={<SettingsPage />} />
+            <Route path="agents" element={<AgentsPage />} />
+            <Route path="skills" element={<SkillsPage />} />
+            <Route path="mcp" element={<MCPPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="learn" element={<LearnPage />} />
+          </Route>
+        </Route>
       </Routes>
     </ChatProvider>
   );

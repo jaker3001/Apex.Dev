@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useChat } from '@/hooks/useChat';
 import { useChatProjects } from '@/hooks/useChatProjects';
 import { ChatHeader, ChatInput, MessageList } from '@/components/chat';
+import { ChatHistory } from '@/components/chat/ChatHistory';
 import { ProjectSelector } from '@/components/chat/ProjectSelector';
 import { useChatContext } from '@/contexts/ChatContext';
 
@@ -62,8 +63,6 @@ export function ChatPage() {
   // Project selector state
   const [showProjectSelector, setShowProjectSelector] = useState(false);
 
-  // Project context is now managed in sidebar
-
   const handleCreateProject = async (projectData: { name: string; description?: string; instructions?: string; linked_job_number?: string }) => {
     const newProject = await createProject(projectData);
     if (newProject) {
@@ -92,49 +91,65 @@ export function ChatPage() {
     newConversation();
   };
 
+  const handleSelectHistory = (id: number) => {
+    setSearchParams({ conversation: id.toString() });
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <ChatHeader
-        isConnected={isConnected}
-        onNewChat={handleNewChat}
-      />
-
-      {/* Error banner */}
-      {error && (
-        <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
-      {/* Messages */}
-      <MessageList messages={messages} isStreaming={isStreaming} />
-
-      {/* Input */}
-      <ChatInput
-        onSend={sendMessage}
-        onCancel={cancelStream}
-        isStreaming={isStreaming}
-        disabled={!isConnected}
-        sessionId={sessionId}
-        model={currentModel}
-        onModelChange={updateModel}
-        mode={mode}
-        onModeChange={handleModeChange}
-      />
-
-      {/* Project Selector Modal */}
-      {showProjectSelector && (
-        <ProjectSelector
-          projects={projects}
-          currentProjectId={selectedChatProjectId}
-          onSelect={setSelectedChatProjectId}
-          onCreate={handleCreateProject}
-          onDelete={handleDeleteProject}
-          onClose={() => setShowProjectSelector(false)}
-          isLoading={projectsLoading}
+    <div className="flex h-full overflow-hidden">
+      {/* Sidebar - Chat History */}
+      <div className="w-80 hidden md:block shrink-0">
+        <ChatHistory 
+            currentId={conversationId} 
+            onSelect={handleSelectHistory} 
+            onNewChat={handleNewChat}
         />
-      )}
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1 min-w-0 bg-background/50">
+        {/* Header */}
+        <ChatHeader
+            isConnected={isConnected}
+            onNewChat={handleNewChat}
+        />
+
+        {/* Error banner */}
+        {error && (
+            <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-sm text-destructive">
+            {error}
+            </div>
+        )}
+
+        {/* Messages */}
+        <MessageList messages={messages} isStreaming={isStreaming} />
+
+        {/* Input */}
+        <ChatInput
+            onSend={sendMessage}
+            onCancel={cancelStream}
+            isStreaming={isStreaming}
+            disabled={!isConnected}
+            sessionId={sessionId}
+            model={currentModel}
+            onModelChange={updateModel}
+            mode={mode}
+            onModeChange={handleModeChange}
+        />
+
+        {/* Project Selector Modal */}
+        {showProjectSelector && (
+            <ProjectSelector
+            projects={projects}
+            currentProjectId={selectedChatProjectId}
+            onSelect={setSelectedChatProjectId}
+            onCreate={handleCreateProject}
+            onDelete={handleDeleteProject}
+            onClose={() => setShowProjectSelector(false)}
+            isLoading={projectsLoading}
+            />
+        )}
+      </div>
     </div>
   );
 }
