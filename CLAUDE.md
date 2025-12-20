@@ -92,22 +92,61 @@ apex-assistant/
 
 ## Two Databases
 
-**apex_assistant.db** - Assistant metrics and chat history
-- `tasks` - User requests with complexity metrics
-- `conversations`, `messages` - Chat sessions with model tracking
-- `agents` - Registered agent usage stats
-- `automation_candidates` - Patterns for potential automation
-- `mcp_connections` - Configured MCP servers
-
-**apex_operations.db** - Business operations (restoration jobs)
-- `projects` - Jobs (job_number is primary key)
-- `clients`, `organizations`, `contacts` - People and companies
-- `estimates`, `payments`, `notes`, `media` - Job documentation
-
 Enable foreign keys when connecting to apex_operations.db:
 ```python
 conn.execute('PRAGMA foreign_keys = ON')
 ```
+
+### apex_operations.db (Business Data)
+
+| Table | Purpose | Used In App |
+|-------|---------|-------------|
+| **projects** | Restoration jobs (job_number is unique key) | Jobs page - main listing |
+| **clients** | Customers/property owners | Linked to projects |
+| **organizations** | Insurance cos, TPAs, subcontractors | Project contacts |
+| **contacts** | People at organizations | Adjuster assignments |
+| **project_contacts** | Links contacts to projects with roles | Job details |
+| **estimates** | Xactimate estimates with versions | Job financials |
+| **payments** | Received payments | Job financials |
+| **notes** | Job notes by type | Job details |
+| **media** | Photos/documents | Job attachments |
+| **receipts** | Expense receipts | Accounting |
+| **work_orders** | Subcontractor work orders | Accounting |
+| **labor_entries** | Employee time tracking per job | Accounting |
+| **activity_log** | Job event history | Event viewer |
+
+**projects columns:** id, job_number, status, address, city, state, zip, year_built, structure_type, square_footage, num_stories, damage_source, damage_category, damage_class, date_of_loss, date_contacted, inspection_date, work_auth_signed_date, start_date, cos_date, completion_date, claim_number, policy_number, deductible, client_id, insurance_org_id, notes, created_at, updated_at, ready_to_invoice
+
+**estimates columns:** id, project_id, version, estimate_type, amount, original_amount, status, submitted_date, approved_date, xactimate_file_path, notes, created_at
+
+**payments columns:** id, project_id, estimate_id, invoice_number, amount, payment_type, payment_method, check_number, received_date, deposited_date, notes, created_at
+
+### apex_assistant.db (Assistant/App Data)
+
+| Table | Purpose | Used In App |
+|-------|---------|-------------|
+| **users** | App user accounts | Auth |
+| **conversations** | Chat sessions | Chat sidebar |
+| **messages** | Chat message history | Chat history (resume) |
+| **agents** | Registered AI agents | Chat sidebar |
+| **tasks** | AI task metrics | Analytics |
+| **automation_candidates** | Patterns for automation | Analytics |
+| **mcp_connections** | MCP server configs | Settings |
+| **chat_projects** | Chat mode contexts | Chat mode |
+| **user_tasks** | Personal to-do items | Dashboard "My Day" |
+| **task_lists** | To-do list categories | Dashboard |
+| **inbox_items** | Quick captures | Dashboard "Inbox" |
+| **time_entries** | Clock in/out records | Dashboard time tracking |
+| **pkm_notes** | Knowledge management notes | Notes feature |
+| **notifications** | User alerts | Bell icon |
+| **activity_logs** | System event logs | Debug |
+| **files_processed** | File processing history | Analytics |
+
+**conversations columns:** id, timestamp, summary, related_task_ids, session_id, is_active, title, last_model_id, message_count, chat_project_id, user_id
+
+**messages columns:** id, conversation_id, role, content, model_id, model_name, tools_used, timestamp
+
+**user_tasks columns:** id, user_id, list_id, parent_id, title, description, status, priority, due_date, due_time, reminder_at, is_important, is_my_day, my_day_date, project_id, recurrence_rule, completed_at, sort_order, created_at, updated_at
 
 ## WebSocket Chat Protocol
 

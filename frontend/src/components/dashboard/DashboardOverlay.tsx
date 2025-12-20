@@ -72,8 +72,8 @@ export function DashboardOverlay({
     >
       <div
         className={cn(
-          'relative w-full h-[90%] max-w-[95%] bg-slate-800 rounded-2xl shadow-2xl',
-          'border border-slate-700 overflow-hidden',
+          'relative w-full h-[90%] max-w-[95%] bg-card rounded-2xl shadow-2xl',
+          'border border-border overflow-hidden',
           'transition-all duration-200 ease-out',
           isAnimating
             ? 'opacity-100 scale-100'
@@ -81,11 +81,11 @@ export function DashboardOverlay({
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-800/80">
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/80">
+          <h2 className="text-xl font-semibold text-foreground">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

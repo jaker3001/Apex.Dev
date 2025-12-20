@@ -50,14 +50,14 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden h-full flex flex-col">
+    <div className="bg-card rounded-xl border border-border overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Sun className="w-5 h-5 text-amber-400" />
-          <h3 className="font-semibold text-white">My Day</h3>
+          <h3 className="font-semibold text-foreground">My Day</h3>
           {totalCount > 0 && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {completedCount}/{totalCount}
             </span>
           )}
@@ -65,7 +65,7 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
         {onViewAll && (
           <button
             onClick={onViewAll}
-            className="text-sm text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
           >
             View all
             <ChevronRight className="w-4 h-4" />

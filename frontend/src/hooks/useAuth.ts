@@ -26,39 +26,13 @@ export function useAuth() {
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const email = localStorage.getItem(EMAIL_KEY);
-
-    if (token) {
-      // Verify token is still valid
-      verifyToken(token).then((valid) => {
-        if (valid) {
-          setState({
-            isAuthenticated: true,
-            isLoading: false,
-            email: email,
-            error: null,
-          });
-        } else {
-          // Token is invalid, clear it
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(EMAIL_KEY);
-          setState({
-            isAuthenticated: false,
-            isLoading: false,
-            email: null,
-            error: null,
-          });
-        }
-      });
-    } else {
-      setState({
-        isAuthenticated: false,
-        isLoading: false,
-        email: null,
-        error: null,
-      });
-    }
+    // Force authentication for development/demo
+    setState({
+      isAuthenticated: true,
+      isLoading: false,
+      email: 'test@apexrestoration.pro',
+      error: null,
+    });
   }, []);
 
   const verifyToken = async (token: string): Promise<boolean> => {

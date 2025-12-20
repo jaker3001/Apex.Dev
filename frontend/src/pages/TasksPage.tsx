@@ -118,7 +118,7 @@ export function TasksPage() {
   return (
     <div className="flex h-full">
       {/* Sidebar */}
-      <div className="w-64 border-r border-slate-700 bg-slate-800/50 flex flex-col">
+      <div className="w-64 border-r border-border bg-muted/30 flex flex-col">
         {/* System Lists */}
         <div className="p-3 space-y-1">
           <SidebarItem
@@ -179,17 +179,17 @@ export function TasksPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-slate-900">
+      <div className="flex-1 flex flex-col bg-background">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700">
-          <h1 className="text-xl font-semibold text-white">{getViewTitle()}</h1>
-          <p className="text-sm text-slate-400 mt-1">
+        <div className="px-8 py-6 border-b border-border">
+          <h1 className="text-3xl font-bold text-foreground">{getViewTitle()}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
           </p>
         </div>
 
         {/* Quick Add */}
-        <div className="px-6 py-3 border-b border-slate-700">
+        <div className="px-8 py-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
               <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

@@ -7,10 +7,12 @@ import { SettingsSidebar } from './SettingsSidebar';
 type ActiveSection = 'chat' | 'dashboard' | 'jobs' | 'settings';
 
 function getActiveSection(pathname: string): ActiveSection {
+  if (pathname === '/') return 'dashboard';
+  if (pathname.startsWith('/chat')) return 'chat';
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/jobs')) return 'jobs';
   if (pathname.startsWith('/dashboard')) return 'dashboard';
-  return 'chat';
+  return 'dashboard';
 }
 
 export function AppLayout() {
@@ -18,7 +20,7 @@ export function AppLayout() {
   const activeSection = getActiveSection(location.pathname);
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Top Navigation */}
       <TopNav />
 

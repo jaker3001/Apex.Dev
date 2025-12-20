@@ -64,14 +64,14 @@ export function DashboardPage() {
     switch (view) {
       case 'inbox':
         return (
-          <div className="h-full p-6 overflow-y-auto">
-            <p className="text-slate-400">Full inbox view coming soon...</p>
+          <div className="h-full p-8 overflow-y-auto">
+            <p className="text-muted-foreground">Full inbox view coming soon...</p>
           </div>
         );
       case 'tasks':
         return (
-          <div className="h-full p-6 overflow-y-auto">
-            <p className="text-slate-400">Full tasks view coming soon...</p>
+          <div className="h-full p-8 overflow-y-auto">
+            <p className="text-muted-foreground">Full tasks view coming soon...</p>
           </div>
         );
       case 'notes':
@@ -94,7 +94,7 @@ export function DashboardPage() {
   ];
 
   return (
-    <div className="flex h-full bg-slate-900">
+    <div className="flex h-full bg-background">
       <DashboardSidebar
         activeView={activeOverlay || 'hub'}
         onViewChange={handleViewChange}
@@ -103,11 +103,11 @@ export function DashboardPage() {
 
       {/* Hub is always visible */}
       <main className="flex-1 overflow-hidden">
-        <div className="h-full p-6 overflow-y-auto">
+        <div className="h-full p-8 overflow-y-auto">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-100">My Hub</h1>
-            <p className="text-sm text-slate-400">Your productivity dashboard</p>
+            <h1 className="text-3xl font-bold text-foreground">My Hub</h1>
+            <p className="text-sm text-muted-foreground">Your productivity dashboard</p>
           </div>
 
           {/* Slideshow Card - Full Width */}

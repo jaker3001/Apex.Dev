@@ -47,11 +47,11 @@ function AuthenticatedApp() {
     <ChatProvider>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-        {/* Chat Section */}
-        <Route index element={<ChatPage />} />
+        {/* Dashboard Section - Default */}
+        <Route index element={<DashboardPage />} />
 
-        {/* Dashboard Section */}
-        <Route path="dashboard" element={<DashboardPage />} />
+        {/* Chat Section */}
+        <Route path="chat" element={<ChatPage />} />
 
         {/* Jobs Section */}
         <Route path="jobs" element={<ProjectsPage />} />

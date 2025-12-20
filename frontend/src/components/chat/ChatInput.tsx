@@ -174,7 +174,7 @@ export function ChatInput({
   const hasContent = input.trim() || attachedFiles.length > 0;
 
   return (
-    <div className="bg-background p-4">
+    <div className="bg-slate-900 p-4 border-t border-slate-700">
       <div className="max-w-3xl mx-auto">
         {/* Attached files preview */}
         {attachedFiles.length > 0 && (
@@ -186,7 +186,7 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="relative flex items-end gap-2 bg-muted rounded-2xl p-2">
+        <div className="relative flex items-end gap-2 bg-slate-800 rounded-2xl p-2 border border-slate-700">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -209,7 +209,7 @@ export function ChatInput({
           <Button
             variant="ghost"
             size="icon"
-            className="flex-shrink-0 h-10 w-10 rounded-xl"
+            className="flex-shrink-0 h-10 w-10 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700"
             disabled={disabled || isUploading}
             onClick={handleFileSelect}
             title="Attach files"
@@ -230,7 +230,7 @@ export function ChatInput({
             placeholder="Message Apex Assistant..."
             rows={1}
             disabled={disabled}
-            className="flex-1 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 py-2.5 px-2 max-h-[200px] text-sm placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 py-2.5 px-2 max-h-[200px] text-sm text-white placeholder:text-slate-500"
           />
 
           {/* Send/Cancel button */}
@@ -239,7 +239,7 @@ export function ChatInput({
               variant="ghost"
               size="icon"
               onClick={onCancel}
-              className="flex-shrink-0 h-10 w-10 rounded-xl text-destructive hover:text-destructive"
+              className="flex-shrink-0 h-10 w-10 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-900/20"
             >
               <StopCircle className="h-5 w-5" />
             </Button>
@@ -248,7 +248,7 @@ export function ChatInput({
               size="icon"
               onClick={handleSubmit}
               disabled={!hasContent || disabled || isUploading}
-              className="flex-shrink-0 h-10 w-10 rounded-xl"
+              className="flex-shrink-0 h-10 w-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:bg-slate-700 disabled:text-slate-500"
             >
               <Send className="h-5 w-5" />
             </Button>
@@ -256,7 +256,7 @@ export function ChatInput({
         </div>
 
         {/* Hint text */}
-        <p className="text-xs text-muted-foreground text-center mt-2">
+        <p className="text-xs text-slate-500 text-center mt-2">
           Press Enter to send, Shift+Enter for new line
         </p>
       </div>
