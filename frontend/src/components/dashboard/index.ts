@@ -1,5 +1,3 @@
-export { DashboardSidebar } from './DashboardSidebar';
-export { DashboardOverlay } from './DashboardOverlay';
 export { QuickCaptureModal } from './QuickCaptureModal';
 export { SlideShowCard, type SlideType } from './SlideShowCard';
 

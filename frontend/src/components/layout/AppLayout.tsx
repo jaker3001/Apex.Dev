@@ -1,40 +1,26 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { TopNav } from './TopNav';
-import { ChatSidebar } from './ChatSidebar';
-import { ProjectsSidebar } from './ProjectsSidebar';
-import { SettingsSidebar } from './SettingsSidebar';
-
-type ActiveSection = 'chat' | 'dashboard' | 'jobs' | 'settings';
-
-function getActiveSection(pathname: string): ActiveSection {
-  if (pathname === '/') return 'dashboard';
-  if (pathname.startsWith('/chat')) return 'chat';
-  if (pathname.startsWith('/settings')) return 'settings';
-  if (pathname.startsWith('/jobs')) return 'jobs';
-  if (pathname.startsWith('/dashboard')) return 'dashboard';
-  return 'dashboard';
-}
+import { UnifiedSidebar } from './UnifiedSidebar';
+import { QuickCaptureButton } from './QuickCaptureButton';
 
 export function AppLayout() {
-  const location = useLocation();
-  const activeSection = getActiveSection(location.pathname);
-
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
-      {/* Top Navigation */}
-      <TopNav />
+    <div className="flex h-screen bg-background text-foreground overflow-hidden selection:bg-primary/20">
+      {/* Permanent Unified Sidebar */}
+      <UnifiedSidebar />
 
-      {/* Main content area with conditional sidebar */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Contextual Sidebar */}
-        {activeSection === 'chat' && <ChatSidebar />}
-        {activeSection === 'jobs' && <ProjectsSidebar />}
-        {activeSection === 'settings' && <SettingsSidebar />}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Header */}
+        <TopNav />
 
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden">
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
           <Outlet />
         </main>
+        
+        {/* Floating Action Button (Global) */}
+        <QuickCaptureButton />
       </div>
     </div>
   );

@@ -35,19 +35,6 @@ export function useAuth() {
     });
   }, []);
 
-  const verifyToken = async (token: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/auth/verify`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
-  };
-
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 

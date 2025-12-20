@@ -2,8 +2,9 @@ import { useState, useRef } from 'react';
 import { X, FileText, CheckSquare, Image, Mic, File, Upload, Loader2, Link } from 'lucide-react';
 import { useCreateInboxItem, useUploadInboxFile } from '@/hooks/useHub';
 import { useProjects } from '@/hooks/useProjects';
-import type { QuickCaptureType } from '@/pages/DashboardPage';
 import { cn } from '@/lib/utils';
+
+export type QuickCaptureType = 'note' | 'task' | 'photo' | 'audio' | 'document' | null;
 
 interface QuickCaptureModalProps {
   type: QuickCaptureType;

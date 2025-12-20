@@ -1,75 +1,40 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { MessageSquare, LayoutDashboard, Briefcase, Settings } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
-
-interface TopNavItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-}
-
-function TopNavItem({ to, icon, label }: TopNavItemProps) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-            : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-        )
-      }
-    >
-      {icon}
-      <span>{label}</span>
-    </NavLink>
-  );
-}
 
 export function TopNav() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Simple page title based on path
+  const getPageTitle = (path: string) => {
+    if (path === '/') return 'Dashboard';
+    if (path.startsWith('/chat')) return 'Chat';
+    if (path.startsWith('/jobs')) return 'Jobs';
+    if (path.startsWith('/settings')) return 'Settings';
+    return 'Apex Assistant';
+  };
 
   return (
-    <header className="h-14 border-b border-slate-700 bg-slate-800 flex items-center justify-between px-4 shrink-0">
-      {/* Left: Logo */}
+    <header className="h-16 border-b border-white/5 bg-background/50 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
+      {/* Left: Page Title */}
       <div className="flex items-center gap-2">
-        <h1 className="text-lg font-bold text-white">Apex Assistant</h1>
+        <h2 className="text-xl font-semibold text-foreground tracking-tight">
+          {getPageTitle(location.pathname)}
+        </h2>
       </div>
 
-      {/* Center: Main Navigation */}
-      <nav className="flex items-center gap-2">
-        <TopNavItem
-          to="/"
-          icon={<LayoutDashboard className="h-4 w-4" />}
-          label="Dashboard"
-        />
-        <TopNavItem
-          to="/chat"
-          icon={<MessageSquare className="h-4 w-4" />}
-          label="Chat"
-        />
-        <TopNavItem
-          to="/jobs"
-          icon={<Briefcase className="h-4 w-4" />}
-          label="Jobs"
-        />
-      </nav>
-
       {/* Right: Notifications & Settings */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <NotificationDropdown />
         <button
           onClick={() => navigate('/settings')}
-          className={cn(
-            'flex items-center justify-center w-9 h-9 rounded-lg transition-colors',
-            'text-slate-400 hover:bg-slate-700 hover:text-white'
-          )}
+          className="p-2 rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
           title="Settings"
         >
           <Settings className="h-5 w-5" />
         </button>
+        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-orange-400 ml-2 shadow-lg" />
       </div>
     </header>
   );
