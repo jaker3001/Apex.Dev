@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/react-query/config';
 import { AppLayout } from './components/layout/AppLayout';
 import { ChatPage } from './pages/ChatPage';
 import { AgentsPage } from './pages/AgentsPage';
@@ -16,15 +17,6 @@ import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
 import { ChatProvider } from './contexts/ChatContext';
 import { Loader2 } from 'lucide-react';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60, // 1 minute
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 function AuthenticatedApp() {
   const { isAuthenticated, isLoading } = useAuth();
