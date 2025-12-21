@@ -9,7 +9,7 @@ export function TopNav() {
   // Simple page title based on path
   const getPageTitle = (path: string) => {
     if (path === '/') return 'Dashboard';
-    if (path.startsWith('/chat')) return 'Chat';
+    if (path.startsWith('/chat')) return 'Assistant';
     if (path.startsWith('/jobs')) return 'Jobs';
     if (path.startsWith('/settings')) return 'Settings';
     return 'Apex Assistant';

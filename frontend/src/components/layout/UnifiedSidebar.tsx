@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  MessageSquare,
+  Bot,
   Calendar,
   CheckSquare,
   Briefcase,
@@ -81,7 +81,7 @@ export function UnifiedSidebar() {
             </h3>
           )}
           <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" collapsed={collapsed} />
-          <SidebarItem icon={MessageSquare} label="Chat" to="/chat" collapsed={collapsed} />
+          <SidebarItem icon={Bot} label="Assistant" to="/chat" collapsed={collapsed} />
           <SidebarItem icon={Calendar} label="Calendar" to="/calendar" collapsed={collapsed} />
           <SidebarItem icon={CheckSquare} label="Tasks" to="/tasks" collapsed={collapsed} />
         </div>

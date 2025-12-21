@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Cloud, CheckCircle2 } from 'lucide-react';
+import { Cloud, CheckCircle2, MessageSquare, Newspaper } from 'lucide-react';
 
 // Widget Container Component
 function Widget({ children, className, title, action }: { children: React.ReactNode, className?: string, title?: string, action?: React.ReactNode }) {
@@ -21,7 +21,7 @@ function Widget({ children, className, title, action }: { children: React.ReactN
   );
 }
 
-// Mock Data Components
+// Mock Data Components for Hub
 function MyDayWidget() {
   const tasks = [
     { id: 1, title: 'Review Job #1045 photos', completed: false, time: '10:00 AM' },
@@ -121,55 +121,104 @@ function ProjectStatusWidget() {
     )
 }
 
-export function DashboardPage() {
-  const [activeView, setActiveView] = useState(0);
-  const views = ['My Hub', 'Social', 'News'];
+// Hub View Component
+function MyHubView({ currentTime }: { currentTime: Date }) {
+  const timeString = currentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dateString = currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 
   return (
-    <div className="h-full w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col">
-      {/* View Indicators (Swipe Navigation) */}
-      {/* Only visible on mobile really, but good for structure */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-[minmax(180px,auto)] w-full">
+      {/* Top Row */}
+      <div className="col-span-1 md:col-span-3">
+         <h1 className="text-3xl font-bold mb-1">Good Morning, Jake</h1>
+         <p className="text-muted-foreground">Here's what's on your plate for today.</p>
+      </div>
+      <div className="col-span-1 flex justify-end items-center pr-2">
+         <div className="text-right">
+            <div className="text-2xl font-bold">{timeString}</div>
+            <div className="text-sm text-muted-foreground">{dateString}</div>
+         </div>
+      </div>
+
+      {/* Widgets Grid */}
+      <MyDayWidget />
+      <WeatherWidget />
+      <CalendarWidget />
+      <ProjectStatusWidget />
       
-      <div className="flex-1 overflow-y-auto min-h-0 pb-20"> {/* pb-20 for FAB space */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-[minmax(180px,auto)]">
-          {/* Top Row */}
-          <div className="col-span-1 md:col-span-3">
-             <h1 className="text-3xl font-bold mb-1">Good Morning, Jake</h1>
-             <p className="text-muted-foreground">Here's what's on your plate for today.</p>
+       {/* Quick Stats */}
+       <Widget className="col-span-1 md:col-span-2 row-span-1 flex items-center justify-center">
+          <div className="text-center">
+              <div className="text-3xl font-bold text-green-500">12</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Active Jobs</div>
           </div>
-          <div className="col-span-1 flex justify-end items-center">
-             <div className="text-right">
-                <div className="text-2xl font-bold">10:42 AM</div>
-                <div className="text-sm text-muted-foreground">Saturday, Dec 20</div>
-             </div>
+       </Widget>
+       <Widget className="col-span-1 md:col-span-2 row-span-1 flex items-center justify-center">
+          <div className="text-center">
+              <div className="text-3xl font-bold text-orange-500">3</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pending Est</div>
           </div>
+       </Widget>
+    </div>
+  );
+}
 
-          {/* Widgets Grid */}
-          <MyDayWidget />
-          <WeatherWidget />
-          <CalendarWidget />
-          <ProjectStatusWidget />
-          
-           {/* Quick Stats */}
-           <Widget className="col-span-1 row-span-1 flex items-center justify-center">
-              <div className="text-center">
-                  <div className="text-3xl font-bold text-green-500">12</div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Active Jobs</div>
-              </div>
-           </Widget>
-           <Widget className="col-span-1 row-span-1 flex items-center justify-center">
-              <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-500">3</div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Pending Est</div>
-              </div>
-           </Widget>
+// Social View Component (Placeholder)
+function SocialView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
+      <div className="p-6 bg-white/5 rounded-full">
+        <MessageSquare className="h-12 w-12 text-primary/50" />
+      </div>
+      <h2 className="text-2xl font-bold">Team Activity</h2>
+      <p className="text-muted-foreground max-w-md">
+        Stay updated with your team's progress, announcements, and celebrations. This feed is coming soon.
+      </p>
+    </div>
+  );
+}
 
+// News View Component (Placeholder)
+function NewsView() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
+      <div className="p-6 bg-white/5 rounded-full">
+        <Newspaper className="h-12 w-12 text-primary/50" />
+      </div>
+      <h2 className="text-2xl font-bold">Company News</h2>
+      <p className="text-muted-foreground max-w-md">
+        Latest updates, industry news, and training materials will be posted here.
+      </p>
+    </div>
+  );
+}
+
+export function DashboardPage() {
+  const [activeView, setActiveView] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const views = ['My Hub', 'Social', 'News'];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="h-full w-full p-4 md:p-8 flex flex-col">
+      {/* Main Content Area with conditional rendering */}
+      <div className="flex-1 overflow-y-auto min-h-0 pb-20">
+        <div className="transition-all duration-300 ease-in-out">
+          {activeView === 0 && <MyHubView currentTime={currentTime} />}
+          {activeView === 1 && <SocialView />}
+          {activeView === 2 && <NewsView />}
         </div>
       </div>
       
       {/* Page Indicators */}
       <div className="flex justify-center gap-2 mt-4 pb-2">
-        {views.map((_, i) => (
+        {views.map((label, i) => (
           <button
             key={i}
             onClick={() => setActiveView(i)}
@@ -177,6 +226,7 @@ export function DashboardPage() {
               "h-1.5 rounded-full transition-all duration-300",
               activeView === i ? "w-8 bg-white" : "w-1.5 bg-white/20 hover:bg-white/40"
             )}
+            title={label}
           />
         ))}
       </div>
