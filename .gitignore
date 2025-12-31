@@ -88,3 +88,6 @@ nul
 
 # Test/temp output
 nanobanana-output/
+
+# Git worktrees
+.worktrees/
