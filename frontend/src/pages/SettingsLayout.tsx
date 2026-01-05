@@ -1,13 +1,10 @@
 import { Outlet } from 'react-router-dom';
-import { SettingsSidebar } from '@/components/layout/SettingsSidebar';
 
 export function SettingsLayout() {
+  // Sidebar is now rendered by ContextualSidebar in AppLayout
   return (
-    <div className="flex h-full overflow-hidden">
-      <SettingsSidebar />
-      <div className="flex-1 overflow-y-auto bg-background/50">
-        <Outlet />
-      </div>
+    <div className="flex-1 overflow-y-auto bg-background/50">
+      <Outlet />
     </div>
   );
 }

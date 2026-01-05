@@ -13,6 +13,7 @@ import { SettingsLayout } from './pages/SettingsLayout';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { TasksPage } from './pages/TasksPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
 import { ChatProvider } from './contexts/ChatContext';
@@ -49,6 +50,9 @@ function AuthenticatedApp() {
           {/* Jobs Section */}
           <Route path="jobs" element={<ProjectsPage />} />
           <Route path="jobs/:id" element={<ProjectDetailPage />} />
+
+          {/* Tasks Section */}
+          <Route path="tasks" element={<TasksPage />} />
 
           {/* Settings Section with Layout */}
           <Route path="settings" element={<SettingsLayout />}>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   useTaskLists,
   useTasks,
@@ -14,8 +15,6 @@ import {
   Sun,
   Star,
   Calendar,
-  Inbox,
-  List,
   Plus,
   Check,
   Trash2,
@@ -24,7 +23,12 @@ import {
 import { cn } from '@/lib/utils';
 
 export function TasksPage() {
-  const [selectedView, setSelectedView] = useState<'my_day' | 'important' | 'planned' | 'inbox' | number>('my_day');
+  const [searchParams] = useSearchParams();
+  const viewParam = searchParams.get('view') || 'my_day';
+  const listParam = searchParams.get('list');
+
+  // Convert URL params to selected view
+  const selectedView = listParam ? parseInt(listParam) : viewParam as 'my_day' | 'important' | 'planned' | 'inbox';
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
   // Build filters based on selected view
@@ -50,10 +54,6 @@ export function TasksPage() {
 
   const lists = listsData?.lists || [];
   const tasks = tasksData?.tasks || [];
-
-  // Separate system and custom lists
-  const systemLists = lists.filter(l => l.is_system);
-  const customLists = lists.filter(l => !l.is_system);
 
   // Get current view title
   const getViewTitle = () => {
@@ -110,171 +110,75 @@ export function TasksPage() {
   if (listsLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="w-64 border-r border-border bg-muted/30 flex flex-col">
-        {/* System Lists */}
-        <div className="p-3 space-y-1">
-          <SidebarItem
-            icon={Sun}
-            label="My Day"
-            count={systemLists.find(l => l.name === 'My Day')?.task_count}
-            isSelected={selectedView === 'my_day'}
-            onClick={() => setSelectedView('my_day')}
-          />
-          <SidebarItem
-            icon={Star}
-            label="Important"
-            count={systemLists.find(l => l.name === 'Important')?.task_count}
-            isSelected={selectedView === 'important'}
-            onClick={() => setSelectedView('important')}
-          />
-          <SidebarItem
-            icon={Calendar}
-            label="Planned"
-            count={systemLists.find(l => l.name === 'Planned')?.task_count}
-            isSelected={selectedView === 'planned'}
-            onClick={() => setSelectedView('planned')}
-          />
-          <SidebarItem
-            icon={Inbox}
-            label="Inbox"
-            count={systemLists.find(l => l.name === 'Inbox')?.task_count}
-            isSelected={selectedView === 'inbox'}
-            onClick={() => setSelectedView('inbox')}
-          />
-        </div>
+    <div className="flex-1 flex flex-col bg-background">
+      {/* Header */}
+      <div className="px-8 py-6 border-b border-border">
+        <h1 className="text-3xl font-bold text-foreground">{getViewTitle()}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+        </p>
+      </div>
 
-        {/* Divider */}
-        <div className="h-px bg-slate-700 mx-3" />
-
-        {/* Custom Lists */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {customLists.map(list => (
-            <SidebarItem
-              key={list.id}
-              icon={List}
-              label={list.name}
-              count={list.task_count}
-              isSelected={selectedView === list.id}
-              onClick={() => setSelectedView(list.id)}
-              color={list.color}
+      {/* Quick Add */}
+      <div className="px-8 py-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Add a task..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
+              className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
             />
-          ))}
-        </div>
-
-        {/* Add List Button */}
-        <div className="p-3 border-t border-slate-700">
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-            <Plus className="w-4 h-4" />
-            New List
+          </div>
+          <button
+            onClick={handleCreateTask}
+            disabled={!newTaskTitle.trim() || createTask.isPending}
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed text-primary-foreground rounded-lg text-sm font-medium transition-colors"
+          >
+            {createTask.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-background">
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-border">
-          <h1 className="text-3xl font-bold text-foreground">{getViewTitle()}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
-          </p>
-        </div>
-
-        {/* Quick Add */}
-        <div className="px-8 py-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Add a task..."
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
-                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <button
-              onClick={handleCreateTask}
-              disabled={!newTaskTitle.trim() || createTask.isPending}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {createTask.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
-            </button>
+      {/* Task List */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {tasksLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        </div>
-
-        {/* Task List */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {tasksLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        ) : tasks.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+              <Check className="w-8 h-8 text-muted-foreground" />
             </div>
-          ) : tasks.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 bg-slate-800 rounded-full flex items-center justify-center">
-                <Check className="w-8 h-8 text-slate-600" />
-              </div>
-              <p className="text-slate-400">No tasks yet</p>
-              <p className="text-sm text-slate-500 mt-1">Add a task to get started</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {tasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  onToggleComplete={() => handleToggleComplete(task)}
-                  onToggleImportant={() => handleToggleImportant(task)}
-                  onToggleMyDay={() => handleToggleMyDay(task)}
-                  onDelete={() => handleDeleteTask(task.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            <p className="text-muted-foreground">No tasks yet</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">Add a task to get started</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map(task => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onToggleComplete={() => handleToggleComplete(task)}
+                onToggleImportant={() => handleToggleImportant(task)}
+                onToggleMyDay={() => handleToggleMyDay(task)}
+                onDelete={() => handleDeleteTask(task.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-// Sidebar Item Component
-interface SidebarItemProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  count?: number;
-  isSelected: boolean;
-  onClick: () => void;
-  color?: string;
-}
-
-function SidebarItem({ icon: Icon, label, count, isSelected, onClick, color }: SidebarItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-        isSelected
-          ? 'bg-blue-600/20 text-blue-400'
-          : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-      )}
-    >
-      <span style={color ? { color } : undefined}>
-        <Icon className="w-4 h-4" />
-      </span>
-      <span className="flex-1 text-left">{label}</span>
-      {count !== undefined && count > 0 && (
-        <span className="text-xs text-slate-500">{count}</span>
-      )}
-    </button>
   );
 }
 
@@ -294,7 +198,7 @@ function TaskItem({ task, onToggleComplete, onToggleImportant, onToggleMyDay, on
   return (
     <div
       className={cn(
-        'group flex items-start gap-3 p-3 bg-slate-800 rounded-lg hover:bg-slate-750 transition-colors',
+        'group flex items-start gap-3 p-3 bg-card rounded-lg hover:bg-card/80 transition-colors',
         isCompleted && 'opacity-60'
       )}
       onMouseEnter={() => setShowActions(true)}
@@ -306,33 +210,33 @@ function TaskItem({ task, onToggleComplete, onToggleImportant, onToggleMyDay, on
         className={cn(
           'mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
           isCompleted
-            ? 'bg-blue-600 border-blue-600'
-            : 'border-slate-500 hover:border-blue-500'
+            ? 'bg-primary border-primary'
+            : 'border-muted-foreground hover:border-primary'
         )}
       >
-        {isCompleted && <Check className="w-3 h-3 text-white" />}
+        {isCompleted && <Check className="w-3 h-3 text-primary-foreground" />}
       </button>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <p className={cn(
-          'text-sm text-white',
-          isCompleted && 'line-through text-slate-400'
+          'text-sm text-foreground',
+          isCompleted && 'line-through text-muted-foreground'
         )}>
           {task.title}
         </p>
         {task.description && (
-          <p className="text-xs text-slate-400 mt-1 truncate">{task.description}</p>
+          <p className="text-xs text-muted-foreground mt-1 truncate">{task.description}</p>
         )}
         <div className="flex items-center gap-3 mt-2">
           {task.due_date && (
-            <span className="text-xs text-slate-500 flex items-center gap-1">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Calendar className="w-3 h-3" />
               {task.due_date}
             </span>
           )}
           {task.subtask_total > 0 && (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted-foreground">
               {task.subtask_completed}/{task.subtask_total} subtasks
             </span>
           )}
@@ -347,8 +251,8 @@ function TaskItem({ task, onToggleComplete, onToggleImportant, onToggleMyDay, on
         <button
           onClick={onToggleMyDay}
           className={cn(
-            'p-1.5 rounded hover:bg-slate-700 transition-colors',
-            task.is_my_day ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            'p-1.5 rounded hover:bg-muted transition-colors',
+            task.is_my_day ? 'text-amber-400' : 'text-muted-foreground hover:text-foreground'
           )}
           title={task.is_my_day ? 'Remove from My Day' : 'Add to My Day'}
         >
@@ -357,8 +261,8 @@ function TaskItem({ task, onToggleComplete, onToggleImportant, onToggleMyDay, on
         <button
           onClick={onToggleImportant}
           className={cn(
-            'p-1.5 rounded hover:bg-slate-700 transition-colors',
-            task.is_important ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            'p-1.5 rounded hover:bg-muted transition-colors',
+            task.is_important ? 'text-amber-400' : 'text-muted-foreground hover:text-foreground'
           )}
           title={task.is_important ? 'Remove from Important' : 'Mark as Important'}
         >
@@ -366,7 +270,7 @@ function TaskItem({ task, onToggleComplete, onToggleImportant, onToggleMyDay, on
         </button>
         <button
           onClick={onDelete}
-          className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
           title="Delete"
         >
           <Trash2 className="w-4 h-4" />

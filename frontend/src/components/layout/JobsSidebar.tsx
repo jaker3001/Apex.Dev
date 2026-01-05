@@ -29,34 +29,34 @@ function getDamageIcon(source?: string) {
   return <Building className="h-3 w-3 text-slate-500" />;
 }
 
-interface ProjectItemProps {
+interface JobItemProps {
   project: Project;
   isActive?: boolean;
 }
 
-function ProjectItem({ project, isActive }: ProjectItemProps) {
+function JobItem({ project, isActive }: JobItemProps) {
   return (
     <Link
       to={`/jobs/${project.id}`}
       className={cn(
         'block p-2 rounded-lg transition-colors',
         isActive
-          ? 'bg-blue-600/20 border border-blue-600/30'
-          : 'hover:bg-slate-700'
+          ? 'bg-primary/20 border border-primary/30'
+          : 'hover:bg-white/5'
       )}
     >
       <div className="flex items-center gap-2">
         {getDamageIcon(project.damage_source)}
-        <span className={cn("text-sm font-medium truncate", isActive ? "text-blue-400" : "text-slate-200")}>{project.job_number}</span>
+        <span className={cn("text-sm font-medium truncate", isActive ? "text-primary" : "text-foreground")}>{project.job_number}</span>
       </div>
-      <p className="text-xs text-slate-400 truncate mt-0.5 pl-5">
+      <p className="text-xs text-muted-foreground truncate mt-0.5 pl-5">
         {project.client_name || 'No client'}
       </p>
     </Link>
   );
 }
 
-export function ProjectsSidebar() {
+export function JobsSidebar() {
   const navigate = useNavigate();
   const { id } = useParams();
   const currentProjectId = id ? parseInt(id) : null;
@@ -88,11 +88,11 @@ export function ProjectsSidebar() {
   });
 
   return (
-    <aside className="w-64 h-full bg-slate-800/50 border-r border-slate-700 flex flex-col">
+    <aside className="w-64 h-full bg-background/50 border-r border-white/5 flex flex-col shrink-0">
       {/* Header with New Job button */}
-      <div className="p-3 border-b border-slate-700">
+      <div className="p-3 border-b border-white/5">
         <Button
-          className="w-full justify-start gap-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-600/20"
+          className="w-full justify-start gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
           variant="outline"
           onClick={() => navigate('/jobs')}
         >
@@ -102,22 +102,22 @@ export function ProjectsSidebar() {
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-slate-700">
+      <div className="p-3 border-b border-white/5">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search jobs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-700 rounded-lg bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-white/10 rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
 
       {/* Status Filters */}
-      <div className="p-3 border-b border-slate-700">
-        <p className="px-1 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+      <div className="p-3 border-b border-white/5">
+        <p className="px-1 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Status
         </p>
         <div className="flex flex-wrap gap-1">
@@ -129,7 +129,7 @@ export function ProjectsSidebar() {
                 'px-2 py-1 text-xs rounded-md transition-colors',
                 statusFilter === filter.value
                   ? filter.color
-                  : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                  : 'bg-white/5 text-muted-foreground hover:bg-white/10'
               )}
             >
               {filter.label}
@@ -140,17 +140,17 @@ export function ProjectsSidebar() {
 
       {/* Job List */}
       <div className="flex-1 p-3 overflow-y-auto">
-        <p className="px-1 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <p className="px-1 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Jobs ({filteredProjects.length})
         </p>
         <div className="space-y-1">
           {isLoading ? (
-            <p className="px-2 text-xs text-slate-500">Loading...</p>
+            <p className="px-2 text-xs text-muted-foreground">Loading...</p>
           ) : filteredProjects.length === 0 ? (
-            <p className="px-2 text-xs text-slate-500">No jobs found</p>
+            <p className="px-2 text-xs text-muted-foreground">No jobs found</p>
           ) : (
             filteredProjects.slice(0, 20).map((project: Project) => (
-              <ProjectItem
+              <JobItem
                 key={project.id}
                 project={project}
                 isActive={currentProjectId === project.id}

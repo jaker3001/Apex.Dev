@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useChat } from '@/hooks/useChat';
 import { useChatProjects } from '@/hooks/useChatProjects';
 import { ChatHeader, ChatInput, MessageList } from '@/components/chat';
-import { ChatHistory } from '@/components/chat/ChatHistory';
 import { ProjectSelector } from '@/components/chat/ProjectSelector';
 import { useChatContext } from '@/contexts/ChatContext';
 
@@ -96,18 +95,7 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* Sidebar - Chat History */}
-      <div className="w-80 hidden md:block shrink-0">
-        <ChatHistory 
-            currentId={conversationId} 
-            onSelect={handleSelectHistory} 
-            onNewChat={handleNewChat}
-        />
-      </div>
-
-      {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 min-w-0 bg-background/50">
+    <div className="flex flex-col h-full overflow-hidden bg-background/50">
         {/* Header */}
         <ChatHeader
             isConnected={isConnected}
@@ -149,7 +137,6 @@ export function ChatPage() {
             isLoading={projectsLoading}
             />
         )}
-      </div>
     </div>
   );
 }
