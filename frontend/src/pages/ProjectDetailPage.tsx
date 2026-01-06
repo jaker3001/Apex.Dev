@@ -9,6 +9,7 @@ import {
   NotesTab,
   ExpensesTab,
 } from '@/components/projects/tabs';
+import { DryingTab } from '@/components/drying';
 import {
   EditJobModal,
   AddEstimateModal,
@@ -385,6 +386,10 @@ export function ProjectDetailPage() {
                       <ReceiptIcon className="h-4 w-4" />
                       Expenses
                     </TabsTrigger>
+                    <TabsTrigger value="drying" className="gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-foreground">
+                      <Droplets className="h-4 w-4" />
+                      Drying
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -438,6 +443,10 @@ export function ProjectDetailPage() {
                       setShowWorkOrderModal(true);
                     }}
                   />
+                </TabsContent>
+
+                <TabsContent value="drying" className="m-0 bg-transparent p-4">
+                  <DryingTab projectId={projectId} jobNumber={project.job_number} />
                 </TabsContent>
               </Tabs>
             </div>

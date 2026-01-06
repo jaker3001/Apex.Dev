@@ -10,7 +10,6 @@ This module provides a singleton Supabase client with:
 import os
 from typing import Optional, Any, Callable
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 import logging
 from functools import lru_cache
 import asyncio
@@ -69,20 +68,10 @@ class SupabaseClient:
         if use_service_role and not key:
             raise ValueError("SUPABASE_SERVICE_ROLE_KEY not set")
 
-        options = ClientOptions(
-            auto_refresh_token=True,
-            persist_session=True,
-            # PostgREST options
-            schema="public",
-            headers={
-                "X-Client-Info": "apex-assistant/1.0",
-            }
-        )
-
+        # Use minimal options - let supabase library handle defaults
         return create_client(
             supabase_url=self._config.url,
-            supabase_key=key,
-            options=options
+            supabase_key=key
         )
 
     @property

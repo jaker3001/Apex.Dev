@@ -69,6 +69,17 @@ class NoteContent(BaseModel):
     linked_jobs: list[str] = []
 
 
+class NoteResponse(BaseModel):
+    """Response for a single note (used by repository)."""
+    id: int
+    user_id: str
+    title: str
+    content: Optional[str] = None
+    tags: list[str] = []
+    created_at: datetime
+    updated_at: datetime
+
+
 class NoteCreateRequest(BaseModel):
     """Request to create a new note."""
     file_path: str = Field(..., description="Path for the new note (e.g., 'folder/note-name')")

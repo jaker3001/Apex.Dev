@@ -25,7 +25,7 @@ if __name__ == "__main__":
     config = uvicorn.Config(
         "api.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         loop="asyncio",  # Use asyncio loop (with our policy)
     )
     server = uvicorn.Server(config)

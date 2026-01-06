@@ -33,3 +33,6 @@ postgrest-py>=0.13.0
 
 # Structured logging
 structlog>=24.0.0
+
+# PDF generation (for drying reports)
+reportlab>=4.0.0

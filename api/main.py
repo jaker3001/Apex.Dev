@@ -44,7 +44,7 @@ from database import init_database, init_apex_ops_database
 from database.schema_hub import init_hub_tables
 from database.schema_pkm import init_pkm_tables
 from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts, tasks
-from api.routes import inbox, notifications, time_tracking, calendar, weather, pkm
+from api.routes import inbox, notifications, time_tracking, calendar, weather, pkm, drying
 
 
 @asynccontextmanager
@@ -114,6 +114,7 @@ app.include_router(time_tracking.router, prefix="/api", tags=["time"])
 app.include_router(calendar.router, prefix="/api", tags=["calendar"])
 app.include_router(weather.router, prefix="/api", tags=["weather"])
 app.include_router(pkm.router, prefix="/api", tags=["pkm"])
+app.include_router(drying.router, prefix="/api", tags=["drying"])
 
 # Serve static frontend files in production (must be last to not override API routes)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
