@@ -1,15 +1,15 @@
 """
 Calendar API routes.
-Wraps Google Calendar MCP tools for the frontend.
+
+Provides calendar event CRUD operations using Google Calendar integration.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+import logging
 from typing import Optional
 from datetime import datetime, timedelta
-import httpx
-import os
+from fastapi import APIRouter, HTTPException, Depends
 
-from api.routes.auth import require_auth
+from api.routes.auth import require_auth, UserResponse
 from api.schemas.hub import (
     CalendarEventCreate,
     CalendarEventUpdate,
@@ -17,10 +17,19 @@ from api.schemas.hub import (
     CalendarEventsListResponse,
 )
 
+logger = logging.getLogger("apex_assistant.calendar")
+
 router = APIRouter()
 
-# n8n MCP endpoint for Google Calendar
-N8N_WEBHOOK_BASE = os.getenv("N8N_WEBHOOK_BASE", "")
+
+def get_calendar_service():
+    """Get the Google Calendar service instance."""
+    try:
+        from api.services.google_calendar import get_google_calendar_service
+        return get_google_calendar_service()
+    except ValueError:
+        # Service not configured - return None to fall back to empty responses
+        return None
 
 
 def get_date_range(view: str, start_date: Optional[str] = None) -> tuple[str, str]:
@@ -64,27 +73,51 @@ def get_date_range(view: str, start_date: Optional[str] = None) -> tuple[str, st
 async def get_calendar_events(
     view: str = "week",
     start_date: Optional[str] = None,
-    current_user = Depends(require_auth)
+    end_date: Optional[str] = None,
+    current_user: UserResponse = Depends(require_auth)
 ):
-    """Get calendar events for a given view/date range."""
-    start, end = get_date_range(view, start_date)
+    """
+    Get calendar events for a given view/date range.
 
-    # For now, return empty list - will integrate with MCP later
-    # This allows the frontend to be built while we work on MCP integration
+    If Google Calendar is connected, fetches real events.
+    Otherwise returns an empty list.
+    """
+    # Calculate date range if not fully specified
+    if start_date and end_date:
+        start = start_date
+        end = end_date
+    else:
+        start, end = get_date_range(view, start_date)
+
+    service = get_calendar_service()
+
     events = []
 
-    # TODO: Call n8n MCP webhook for Google Calendar
-    # try:
-    #     async with httpx.AsyncClient() as client:
-    #         response = await client.post(
-    #             f"{N8N_WEBHOOK_BASE}/calendar/events",
-    #             json={"after": start, "before": end}
-    #         )
-    #         if response.status_code == 200:
-    #             data = response.json()
-    #             events = [CalendarEventResponse(...) for e in data]
-    # except Exception as e:
-    #     pass  # Return empty list on error
+    if service:
+        try:
+            calendar_events = await service.list_events(
+                user_id=str(current_user.id),
+                start_date=start,
+                end_date=end,
+            )
+
+            events = [
+                CalendarEventResponse(
+                    id=event.id,
+                    summary=event.summary,
+                    description=event.description,
+                    start=event.start,
+                    end=event.end,
+                    location=event.location,
+                    all_day=event.all_day,
+                    html_link=event.html_link,
+                )
+                for event in calendar_events
+            ]
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch Google Calendar events: {e}")
+            # Return empty list on error
 
     return CalendarEventsListResponse(
         events=events,
@@ -97,39 +130,146 @@ async def get_calendar_events(
 @router.post("/calendar/events", response_model=CalendarEventResponse)
 async def create_calendar_event(
     event: CalendarEventCreate,
-    current_user = Depends(require_auth)
+    current_user: UserResponse = Depends(require_auth)
 ):
-    """Create a new calendar event."""
-    # TODO: Call n8n MCP webhook for Google Calendar
-    # For now, return a mock response
-    raise HTTPException(
-        status_code=501,
-        detail="Calendar integration pending. Use Google Calendar directly for now."
-    )
+    """
+    Create a new calendar event.
+
+    Requires Google Calendar to be connected.
+    """
+    service = get_calendar_service()
+
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Calendar integration not configured."
+        )
+
+    try:
+        created = await service.create_event(
+            user_id=str(current_user.id),
+            summary=event.summary,
+            start=event.start,
+            end=event.end,
+            description=event.description,
+            location=event.location,
+            all_day=event.all_day,
+        )
+
+        return CalendarEventResponse(
+            id=created.id,
+            summary=created.summary,
+            description=created.description,
+            start=created.start,
+            end=created.end,
+            location=created.location,
+            all_day=created.all_day,
+            html_link=created.html_link,
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Please connect your Google Calendar first."
+        )
+    except Exception as e:
+        logger.exception(f"Failed to create calendar event: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create event: {str(e)}"
+        )
 
 
 @router.put("/calendar/events/{event_id}", response_model=CalendarEventResponse)
 async def update_calendar_event(
     event_id: str,
     event: CalendarEventUpdate,
-    current_user = Depends(require_auth)
+    current_user: UserResponse = Depends(require_auth)
 ):
-    """Update a calendar event."""
-    # TODO: Call n8n MCP webhook for Google Calendar
-    raise HTTPException(
-        status_code=501,
-        detail="Calendar integration pending. Use Google Calendar directly for now."
-    )
+    """
+    Update an existing calendar event.
+
+    Requires Google Calendar to be connected.
+    """
+    service = get_calendar_service()
+
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Calendar integration not configured."
+        )
+
+    try:
+        updated = await service.update_event(
+            user_id=str(current_user.id),
+            event_id=event_id,
+            summary=event.summary,
+            start=event.start,
+            end=event.end,
+            description=event.description,
+            location=event.location,
+        )
+
+        return CalendarEventResponse(
+            id=updated.id,
+            summary=updated.summary,
+            description=updated.description,
+            start=updated.start,
+            end=updated.end,
+            location=updated.location,
+            all_day=updated.all_day,
+            html_link=updated.html_link,
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Please connect your Google Calendar first."
+        )
+    except Exception as e:
+        logger.exception(f"Failed to update calendar event: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update event: {str(e)}"
+        )
 
 
 @router.delete("/calendar/events/{event_id}")
 async def delete_calendar_event(
     event_id: str,
-    current_user = Depends(require_auth)
+    calendar_id: str = "primary",
+    current_user: UserResponse = Depends(require_auth)
 ):
-    """Delete a calendar event."""
-    # TODO: Call n8n MCP webhook for Google Calendar
-    raise HTTPException(
-        status_code=501,
-        detail="Calendar integration pending. Use Google Calendar directly for now."
-    )
+    """
+    Delete a calendar event.
+
+    Requires Google Calendar to be connected.
+    """
+    service = get_calendar_service()
+
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Calendar integration not configured."
+        )
+
+    try:
+        await service.delete_event(
+            user_id=str(current_user.id),
+            event_id=event_id,
+            calendar_id=calendar_id,
+        )
+
+        return {"success": True, "message": "Event deleted"}
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Please connect your Google Calendar first."
+        )
+    except Exception as e:
+        logger.exception(f"Failed to delete calendar event: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete event: {str(e)}"
+        )
