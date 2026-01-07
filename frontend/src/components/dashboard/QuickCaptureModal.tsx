@@ -128,16 +128,16 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg mx-4 shadow-2xl">
+      <div className="relative bg-card rounded-xl border border-border w-full max-w-lg mx-4 shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Icon className={cn('w-5 h-5', config.color)} />
-            <h2 className="font-semibold text-white">{config.title}</h2>
+            <h2 className="font-semibold text-foreground">{config.title}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white transition-colors"
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -153,7 +153,7 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
                 'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
                 selectedFile
                   ? 'border-green-500/50 bg-green-500/10'
-                  : 'border-slate-600 hover:border-slate-500 hover:bg-slate-700/50'
+                  : 'border-border hover:border-muted-foreground hover:bg-muted'
               )}
             >
               <input
@@ -165,16 +165,16 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
               />
               {selectedFile ? (
                 <div className="flex items-center justify-center gap-2">
-                  <Icon className="w-6 h-6 text-green-400" />
-                  <span className="text-green-400 font-medium">{selectedFile.name}</span>
+                  <Icon className="w-6 h-6 text-green-400 dark:text-green-400" />
+                  <span className="text-green-400 dark:text-green-400 font-medium">{selectedFile.name}</span>
                 </div>
               ) : (
                 <>
-                  <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">
                     Click to select or drag & drop
                   </p>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-muted-foreground/60 text-xs mt-1">
                     {type === 'photo' && 'JPG, PNG, GIF up to 10MB'}
                     {type === 'audio' && 'MP3, WAV, M4A up to 50MB'}
                     {type === 'document' && 'PDF, DOC, XLS up to 25MB'}
@@ -190,7 +190,7 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={type === 'task' ? 'Task title' : 'Title (optional)'}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
           />
 
           {/* Content textarea */}
@@ -199,19 +199,19 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
             onChange={(e) => setContent(e.target.value)}
             placeholder={config.placeholder}
             rows={type === 'note' ? 4 : 2}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 resize-none"
+            className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 resize-none"
           />
 
           {/* Link to job option */}
           <div>
             <button
               onClick={() => setShowProjectPicker(!showProjectPicker)}
-              className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Link className="w-4 h-4" />
               {selectedProject ? (
                 <span>
-                  Linked to <span className="text-blue-400">{selectedProject.job_number}</span>
+                  Linked to <span className="text-blue-400 dark:text-blue-400">{selectedProject.job_number}</span>
                 </span>
               ) : (
                 <span>Link to a job (optional)</span>
@@ -219,15 +219,15 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
             </button>
 
             {showProjectPicker && (
-              <div className="mt-2 max-h-32 overflow-y-auto bg-slate-700 rounded-lg border border-slate-600">
+              <div className="mt-2 max-h-32 overflow-y-auto bg-muted rounded-lg border border-border">
                 <button
                   onClick={() => {
                     setSelectedProjectId(undefined);
                     setShowProjectPicker(false);
                   }}
                   className={cn(
-                    'w-full px-3 py-2 text-left text-sm hover:bg-slate-600 transition-colors',
-                    !selectedProjectId ? 'text-blue-400' : 'text-slate-400'
+                    'w-full px-3 py-2 text-left text-sm hover:bg-muted/80 transition-colors',
+                    !selectedProjectId ? 'text-blue-400 dark:text-blue-400' : 'text-muted-foreground'
                   )}
                 >
                   No job (goes to inbox)
@@ -240,13 +240,13 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
                       setShowProjectPicker(false);
                     }}
                     className={cn(
-                      'w-full px-3 py-2 text-left text-sm hover:bg-slate-600 transition-colors',
-                      selectedProjectId === project.id ? 'text-blue-400' : 'text-white'
+                      'w-full px-3 py-2 text-left text-sm hover:bg-muted/80 transition-colors',
+                      selectedProjectId === project.id ? 'text-blue-400 dark:text-blue-400' : 'text-foreground'
                     )}
                   >
                     <span className="font-medium">{project.job_number}</span>
                     {project.address && (
-                      <span className="text-slate-400 ml-2">{project.address}</span>
+                      <span className="text-muted-foreground ml-2">{project.address}</span>
                     )}
                   </button>
                 ))}
@@ -256,10 +256,10 @@ export function QuickCaptureModal({ type, onClose }: QuickCaptureModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-700">
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>

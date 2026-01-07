@@ -100,7 +100,7 @@ export function SlideShowCard({
   return (
     <div
       ref={containerRef}
-      className="relative bg-slate-800 rounded-xl border border-slate-700 overflow-hidden"
+      className="relative bg-card rounded-xl border border-border overflow-hidden"
     >
       {/* Slide container with animation */}
       <div className="relative min-h-[320px] overflow-hidden">
@@ -146,7 +146,7 @@ export function SlideShowCard({
                 className={cn(
                   'transition-all duration-300 ease-out',
                   // Normal state
-                  state === 'normal' && 'text-slate-500 hover:text-slate-300 scale-100',
+                  state === 'normal' && 'text-muted-foreground hover:text-foreground scale-100',
                   // Active state (rotating) - yellow
                   state === 'active' && 'text-amber-400 scale-110',
                   // Locked state - green
@@ -175,7 +175,7 @@ export function SlideShowCard({
       </div>
 
       {/* Subtle gradient overlay for icon visibility */}
-      <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-900/40 to-transparent pointer-events-none z-10" />
+      <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background/40 to-transparent pointer-events-none z-10" />
     </div>
   );
 }
@@ -193,16 +193,16 @@ export function SingleViewCard({ children, title, icon, onClick, className }: Si
   return (
     <div
       className={cn(
-        'bg-slate-800 rounded-xl border border-slate-700 overflow-hidden',
-        onClick && 'cursor-pointer hover:bg-slate-750 transition-colors',
+        'bg-card rounded-xl border border-border overflow-hidden',
+        onClick && 'cursor-pointer hover:bg-muted transition-colors',
         className
       )}
       onClick={onClick}
     >
       {title && (
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           {icon}
-          <h3 className="font-medium text-white">{title}</h3>
+          <h3 className="font-medium text-foreground">{title}</h3>
         </div>
       )}
       <div className="p-4">

@@ -47,15 +47,15 @@ function ConversationItem({ conversation, onSelect, onDelete, isActive }: Conver
     <div
       className={cn(
         'group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors',
-        isActive ? 'bg-blue-600/20' : 'hover:bg-slate-700'
+        isActive ? 'bg-primary/15' : 'hover:bg-muted'
       )}
       onClick={() => onSelect(conversation.id)}
     >
-      <MessageSquare className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-blue-400" : "text-slate-500")} />
-      <span className={cn("text-sm truncate flex-1", isActive ? "text-blue-400 font-medium" : "text-slate-300")}>{title}</span>
-      <span className={cn("text-xs", isActive ? "text-blue-400/70" : "text-slate-500")}>{timeDisplay}</span>
+      <MessageSquare className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+      <span className={cn("text-sm truncate flex-1", isActive ? "text-primary font-medium" : "text-foreground")}>{title}</span>
+      <span className={cn("text-xs", isActive ? "text-primary/70" : "text-muted-foreground")}>{timeDisplay}</span>
       <button
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-900/30 hover:text-red-400 transition-opacity text-slate-500"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive transition-opacity text-muted-foreground"
         onClick={(e) => {
           e.stopPropagation();
           onDelete(conversation.id);
@@ -192,13 +192,13 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
 
   // Expanded view
   return (
-    <aside className="w-64 h-full bg-slate-800/50 border-r border-slate-700 flex flex-col">
+    <aside className="w-64 h-full bg-card/50 border-r border-border flex flex-col">
       {/* Header */}
-      <div className="p-3 border-b border-slate-700">
+      <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setIsCollapsed(true)}
-            className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             title="Collapse sidebar"
           >
             <PanelLeftClose className="h-4 w-4" />
@@ -206,7 +206,7 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
         </div>
 
         <Button
-          className="w-full justify-start gap-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-600/20"
+          className="w-full justify-start gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
           variant="outline"
           size="sm"
           onClick={handleNewChat}
@@ -220,30 +220,30 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
       <div className="flex-1 overflow-y-auto">
         {mode === 'chat' ? (
           // Chat Mode: Projects
-          <div className="p-3 border-b border-slate-700">
+          <div className="p-3 border-b border-border">
             <button
               onClick={() => setIsProjectsCollapsed(!isProjectsCollapsed)}
-              className="w-full flex items-center gap-2 mb-2 hover:bg-slate-700 rounded px-1 py-0.5 transition-colors"
+              className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
             >
               {isProjectsCollapsed ? (
-                <ChevronRight className="h-3 w-3 text-slate-500" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-3 w-3 text-slate-500" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Projects
               </span>
               {projects.length > 0 && (
-                <span className="text-xs text-slate-500 ml-auto">{projects.length}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{projects.length}</span>
               )}
             </button>
 
             {!isProjectsCollapsed && (
               <div className="space-y-0.5">
                 {isLoadingProjects ? (
-                  <p className="px-2 py-1 text-xs text-slate-500">Loading...</p>
+                  <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
                 ) : projects.length === 0 ? (
-                  <p className="px-2 py-1 text-xs text-slate-500">No projects yet</p>
+                  <p className="px-2 py-1 text-xs text-muted-foreground">No projects yet</p>
                 ) : (
                   projects.map((project) => (
                     <button
@@ -251,19 +251,19 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
                       onClick={() => setSelectedChatProjectId(selectedChatProjectId === project.id ? null : project.id)}
                       className={cn(
                         'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors',
-                        selectedChatProjectId === project.id 
-                          ? 'bg-blue-600/20 text-blue-400' 
-                          : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        selectedChatProjectId === project.id
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-foreground hover:bg-muted'
                       )}
                     >
-                      <FolderOpen className={cn("h-4 w-4 flex-shrink-0", selectedChatProjectId === project.id ? "text-blue-400" : "text-slate-500")} />
+                      <FolderOpen className={cn("h-4 w-4 flex-shrink-0", selectedChatProjectId === project.id ? "text-primary" : "text-muted-foreground")} />
                       <span className="text-sm truncate">{project.name}</span>
                     </button>
                   ))
                 )}
                 <button
                   onClick={() => setShowProjectModal(true)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   <span className="text-sm">New Project</span>
@@ -275,30 +275,30 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
           // Agent Mode: Agents, MCPs, Skills
           <>
             {/* Agents Section */}
-            <div className="p-3 border-b border-slate-700">
+            <div className="p-3 border-b border-border">
               <button
                 onClick={() => setIsAgentsCollapsed(!isAgentsCollapsed)}
-                className="w-full flex items-center gap-2 mb-2 hover:bg-slate-700 rounded px-1 py-0.5 transition-colors"
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
               >
                 {isAgentsCollapsed ? (
-                  <ChevronRight className="h-3 w-3 text-slate-500" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 )}
-                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Agents
                 </span>
                 {agents.length > 0 && (
-                  <span className="text-xs text-slate-500 ml-auto">{agents.length}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{agents.length}</span>
                 )}
               </button>
 
               {!isAgentsCollapsed && (
                 <div className="space-y-0.5">
                   {isLoadingAgents ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">Loading...</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
                   ) : agents.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">No agents configured</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No agents configured</p>
                   ) : (
                     agents.map((agent) => (
                       <button
@@ -306,15 +306,15 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
                         onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id)}
                         className={cn(
                           'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors',
-                          selectedAgentId === agent.id 
-                            ? 'bg-blue-600/20 text-blue-400' 
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                          selectedAgentId === agent.id
+                            ? 'bg-primary/15 text-primary'
+                            : 'text-foreground hover:bg-muted'
                         )}
                       >
-                        <Bot className={cn("h-4 w-4 flex-shrink-0", selectedAgentId === agent.id ? "text-blue-400" : "text-slate-500")} />
+                        <Bot className={cn("h-4 w-4 flex-shrink-0", selectedAgentId === agent.id ? "text-primary" : "text-muted-foreground")} />
                         <span className="text-sm truncate flex-1">{agent.name}</span>
                         {agent.times_used > 0 && (
-                          <span className="text-xs text-slate-500">{agent.times_used}</span>
+                          <span className="text-xs text-muted-foreground">{agent.times_used}</span>
                         )}
                       </button>
                     ))
@@ -324,47 +324,47 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
             </div>
 
             {/* MCP Servers Section */}
-            <div className="p-3 border-b border-slate-700">
+            <div className="p-3 border-b border-border">
               <button
                 onClick={() => setIsMCPCollapsed(!isMCPCollapsed)}
-                className="w-full flex items-center gap-2 mb-2 hover:bg-slate-700 rounded px-1 py-0.5 transition-colors"
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
               >
                 {isMCPCollapsed ? (
-                  <ChevronRight className="h-3 w-3 text-slate-500" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 )}
-                <Plug className="h-3 w-3 text-slate-500" />
-                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <Plug className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   MCP Servers
                 </span>
                 {mcpServers.length > 0 && (
-                  <span className="text-xs text-slate-500 ml-auto">{mcpServers.length}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{mcpServers.length}</span>
                 )}
               </button>
 
               {!isMCPCollapsed && (
                 <div className="space-y-0.5">
                   {isLoadingMCP ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">Loading...</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
                   ) : mcpServers.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">No MCP servers configured</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No MCP servers configured</p>
                   ) : (
                     mcpServers.map((server) => (
                       <button
                         key={server.id}
                         onClick={() => toggleServer(server.name)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-slate-700 hover:text-white transition-colors text-slate-300"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted text-foreground transition-colors"
                         title={`Click to ${server.status === 'active' ? 'disable' : 'enable'}`}
                       >
                         <span
                           className={cn(
                             'h-2 w-2 rounded-full flex-shrink-0',
-                            server.status === 'active' ? 'bg-green-500' : 'bg-slate-600'
+                            server.status === 'active' ? 'bg-green-500' : 'bg-muted-foreground/50'
                           )}
                         />
                         <span className="text-sm truncate flex-1">{server.name}</span>
-                        <span className="text-xs text-slate-500 capitalize">{server.server_type}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{server.server_type}</span>
                       </button>
                     ))
                   )}
@@ -373,41 +373,41 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
             </div>
 
             {/* Skills Section */}
-            <div className="p-3 border-b border-slate-700">
+            <div className="p-3 border-b border-border">
               <button
                 onClick={() => setIsSkillsCollapsed(!isSkillsCollapsed)}
-                className="w-full flex items-center gap-2 mb-2 hover:bg-slate-700 rounded px-1 py-0.5 transition-colors"
+                className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
               >
                 {isSkillsCollapsed ? (
-                  <ChevronRight className="h-3 w-3 text-slate-500" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 )}
-                <Sparkles className="h-3 w-3 text-slate-500" />
-                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <Sparkles className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Skills
                 </span>
                 {skills.length > 0 && (
-                  <span className="text-xs text-slate-500 ml-auto">{skills.length}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{skills.length}</span>
                 )}
               </button>
 
               {!isSkillsCollapsed && (
                 <div className="space-y-0.5">
                   {isLoadingSkills ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">Loading...</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
                   ) : skills.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">No skills configured</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No skills configured</p>
                   ) : (
                     skills.map((skill) => (
                       <div
                         key={skill.id}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-slate-700 hover:text-white transition-colors text-slate-300"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted text-foreground transition-colors"
                       >
-                        <Sparkles className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                        <Sparkles className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="text-sm truncate flex-1">{skill.name}</span>
                         {skill.times_used > 0 && (
-                          <span className="text-xs text-slate-500">{skill.times_used}</span>
+                          <span className="text-xs text-muted-foreground">{skill.times_used}</span>
                         )}
                       </div>
                     ))
@@ -422,27 +422,27 @@ export function ChatSidebar({ currentConversationId, onNewChat, onSelectConversa
         <div className="p-3">
           <button
             onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
-            className="w-full flex items-center gap-2 mb-2 hover:bg-slate-700 rounded px-1 py-0.5 transition-colors"
+            className="w-full flex items-center gap-2 mb-2 hover:bg-muted rounded px-1 py-0.5 transition-colors"
           >
             {isHistoryCollapsed ? (
-              <ChevronRight className="h-3 w-3 text-slate-500" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-3 w-3 text-slate-500" />
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
             )}
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Recent
             </span>
             {conversations.length > 0 && (
-              <span className="text-xs text-slate-500 ml-auto">{conversations.length}</span>
+              <span className="text-xs text-muted-foreground ml-auto">{conversations.length}</span>
             )}
           </button>
 
           {!isHistoryCollapsed && (
             <div className="space-y-0.5">
               {isLoading ? (
-                <p className="px-2 py-1 text-xs text-slate-500">Loading...</p>
+                <p className="px-2 py-1 text-xs text-muted-foreground">Loading...</p>
               ) : conversations.length === 0 ? (
-                <p className="px-2 py-1 text-xs text-slate-500">No conversations yet</p>
+                <p className="px-2 py-1 text-xs text-muted-foreground">No conversations yet</p>
               ) : (
                 conversations.map((conversation) => (
                   <ConversationItem

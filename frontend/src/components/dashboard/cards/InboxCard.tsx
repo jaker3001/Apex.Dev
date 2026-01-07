@@ -30,12 +30,12 @@ export function InboxCard({ onViewAll }: InboxCardProps) {
   const unprocessedCount = data?.unprocessed_count || 0;
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Inbox className="w-5 h-5 text-blue-400" />
-          <h3 className="font-semibold text-white">Inbox</h3>
+          <h3 className="font-semibold text-foreground">Inbox</h3>
           {unprocessedCount > 0 && (
             <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
               {unprocessedCount}
@@ -44,7 +44,7 @@ export function InboxCard({ onViewAll }: InboxCardProps) {
         </div>
         <button
           onClick={onViewAll}
-          className="text-sm text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
         >
           View all
           <ChevronRight className="w-4 h-4" />
@@ -59,9 +59,9 @@ export function InboxCard({ onViewAll }: InboxCardProps) {
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-8">
-            <Inbox className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-400 text-sm">Inbox is empty</p>
-            <p className="text-slate-500 text-xs mt-1">Quick captures will appear here</p>
+            <Inbox className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">Inbox is empty</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Quick captures will appear here</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -77,21 +77,21 @@ export function InboxCard({ onViewAll }: InboxCardProps) {
 
 function InboxItemRow({ item }: { item: InboxItem }) {
   const Icon = typeIcons[item.type] || FileText;
-  const colorClass = typeColors[item.type] || 'text-slate-400';
+  const colorClass = typeColors[item.type] || 'text-muted-foreground';
 
   return (
-    <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer">
+    <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
       <div className={cn('mt-0.5', colorClass)}>
         <Icon className="w-4 h-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white truncate">
+        <p className="text-sm text-foreground truncate">
           {item.title || `${item.type.charAt(0).toUpperCase() + item.type.slice(1)} capture`}
         </p>
         {item.content && (
-          <p className="text-xs text-slate-400 truncate">{item.content}</p>
+          <p className="text-xs text-muted-foreground truncate">{item.content}</p>
         )}
-        <p className="text-xs text-slate-500 mt-0.5">
+        <p className="text-xs text-muted-foreground/60 mt-0.5">
           {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
         </p>
       </div>

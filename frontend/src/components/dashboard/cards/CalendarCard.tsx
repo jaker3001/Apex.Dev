@@ -58,12 +58,12 @@ export function CalendarCard() {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-purple-400" />
-          <h3 className="font-semibold text-white">Calendar</h3>
+          <h3 className="font-semibold text-foreground">Calendar</h3>
         </div>
         <div className="flex items-center gap-1">
           {(['day', '3day', 'week'] as CalendarView[]).map((v) => (
@@ -74,7 +74,7 @@ export function CalendarCard() {
                 'px-2 py-1 text-xs rounded transition-colors',
                 view === v
                   ? 'bg-purple-500/30 text-purple-400'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               {v === '3day' ? '3 Day' : v.charAt(0).toUpperCase() + v.slice(1)}
@@ -84,15 +84,15 @@ export function CalendarCard() {
       </div>
 
       {/* Date Navigation */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800/50">
+      <div className="flex items-center justify-between px-4 py-2 bg-card">
         <button
           onClick={() => navigateDate('prev')}
-          className="p-1 text-slate-400 hover:text-white transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white">{getDateLabel()}</span>
+          <span className="text-sm font-medium text-foreground">{getDateLabel()}</span>
           {!isToday(baseDate) && (
             <button
               onClick={goToToday}
@@ -104,7 +104,7 @@ export function CalendarCard() {
         </div>
         <button
           onClick={() => navigateDate('next')}
-          className="p-1 text-slate-400 hover:text-white transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -118,9 +118,9 @@ export function CalendarCard() {
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-8">
-            <Calendar className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-400 text-sm">No events scheduled</p>
-            <p className="text-slate-500 text-xs mt-1">Your calendar is clear</p>
+            <Calendar className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">No events scheduled</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Your calendar is clear</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -139,12 +139,12 @@ function EventRow({ event }: { event: CalendarEvent }) {
   const endTime = parseISO(event.end);
 
   return (
-    <div className="flex gap-3 p-2 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer">
+    <div className="flex gap-3 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
       <div className="w-1 bg-purple-500 rounded-full" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white truncate">{event.summary}</p>
+        <p className="text-sm text-foreground truncate">{event.summary}</p>
         <div className="flex items-center gap-3 mt-1">
-          <div className="flex items-center gap-1 text-xs text-slate-400">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             {event.all_day ? (
               <span>All day</span>
@@ -155,7 +155,7 @@ function EventRow({ event }: { event: CalendarEvent }) {
             )}
           </div>
           {event.location && (
-            <div className="flex items-center gap-1 text-xs text-slate-400 truncate">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
               <MapPin className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{event.location}</span>
             </div>

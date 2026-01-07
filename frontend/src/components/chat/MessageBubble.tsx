@@ -25,14 +25,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         {/* Message content */}
         <div className="max-w-[85%] text-right">
           {message.content && (
-            <div className="text-white">
+            <div className="text-foreground">
               <MarkdownRenderer content={message.content} />
             </div>
           )}
         </div>
 
         {/* Timestamp */}
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-muted-foreground/60 mt-1">
           {message.timestamp.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
@@ -47,9 +47,9 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     <div className="flex flex-col items-start">
       {/* Bot indicator + Model */}
       <div className="flex items-center gap-2 mb-1">
-        <Bot className="h-4 w-4 text-slate-500" />
+        <Bot className="h-4 w-4 text-muted-foreground" />
         {message.modelName && (
-          <span className="text-xs text-slate-500 flex items-center gap-1">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Zap className="h-3 w-3 text-yellow-500" />
             {message.modelName}
           </span>
@@ -59,14 +59,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       {/* Message content */}
       <div className="w-full">
         {message.content ? (
-          <div className="text-white">
+          <div className="text-foreground">
             <MarkdownRenderer content={message.content} />
           </div>
         ) : message.isStreaming ? (
           <div className="flex items-center gap-1.5 py-2">
-            <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
           </div>
         ) : null}
       </div>
@@ -81,7 +81,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       )}
 
       {/* Timestamp */}
-      <p className="text-xs text-slate-500 mt-2">
+      <p className="text-xs text-muted-foreground/60 mt-2">
         {message.timestamp.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',

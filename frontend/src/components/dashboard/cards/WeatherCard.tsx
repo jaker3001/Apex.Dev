@@ -19,11 +19,11 @@ export function WeatherCard() {
 
   if (isLoading) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Cloud className="w-5 h-5 text-sky-400" />
-            <h3 className="font-semibold text-white">Weather</h3>
+            <h3 className="font-semibold text-foreground">Weather</h3>
           </div>
         </div>
         <div className="p-4 flex items-center justify-center py-12">
@@ -35,16 +35,16 @@ export function WeatherCard() {
 
   if (error || !data) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Cloud className="w-5 h-5 text-sky-400" />
-            <h3 className="font-semibold text-white">Weather</h3>
+            <h3 className="font-semibold text-foreground">Weather</h3>
           </div>
         </div>
         <div className="p-4 text-center py-8">
-          <Cloud className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <p className="text-slate-400 text-sm">Unable to load weather</p>
+          <Cloud className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-muted-foreground text-sm">Unable to load weather</p>
         </div>
       </div>
     );
@@ -54,14 +54,14 @@ export function WeatherCard() {
   const weatherEmoji = iconMap[current.icon] || '🌡️';
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Cloud className="w-5 h-5 text-sky-400" />
-          <h3 className="font-semibold text-white">Weather</h3>
+          <h3 className="font-semibold text-foreground">Weather</h3>
         </div>
-        <span className="text-xs text-slate-400">{location}</span>
+        <span className="text-xs text-muted-foreground">{location}</span>
       </div>
 
       {/* Current Weather */}
@@ -69,21 +69,21 @@ export function WeatherCard() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-white">{Math.round(current.temp_f)}</span>
-              <span className="text-xl text-slate-400">°F</span>
+              <span className="text-4xl font-bold text-foreground">{Math.round(current.temp_f)}</span>
+              <span className="text-xl text-muted-foreground">°F</span>
             </div>
-            <p className="text-sm text-slate-400">{current.condition}</p>
+            <p className="text-sm text-muted-foreground">{current.condition}</p>
           </div>
           <div className="text-5xl">{weatherEmoji}</div>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-slate-400">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Droplets className="w-4 h-4 text-sky-400" />
             <span>{current.humidity}%</span>
           </div>
           <div className="flex items-center gap-1">
-            <Wind className="w-4 h-4 text-slate-400" />
+            <Wind className="w-4 h-4 text-muted-foreground" />
             <span>{Math.round(current.wind_mph)} mph</span>
           </div>
           <div className="text-xs">
@@ -126,14 +126,14 @@ function ForecastDay({ day }: { day: WeatherForecastDay }) {
   const isSnow = day.chance_of_snow > day.chance_of_rain;
 
   return (
-    <div className="flex-shrink-0 flex flex-col items-center p-2 rounded-lg bg-slate-700/50 min-w-[60px]">
-      <span className="text-xs text-slate-400">
+    <div className="flex-shrink-0 flex flex-col items-center p-2 rounded-lg bg-muted min-w-[60px]">
+      <span className="text-xs text-muted-foreground">
         {format(parseISO(day.date), 'EEE')}
       </span>
       <span className="text-lg my-1">{emoji}</span>
       <div className="flex items-center gap-1 text-xs">
-        <span className="text-white font-medium">{Math.round(day.high_f)}°</span>
-        <span className="text-slate-500">{Math.round(day.low_f)}°</span>
+        <span className="text-foreground font-medium">{Math.round(day.high_f)}°</span>
+        <span className="text-muted-foreground/60">{Math.round(day.low_f)}°</span>
       </div>
       {hasPrecip && (
         <div className="flex items-center gap-0.5 text-xs text-sky-400 mt-0.5">

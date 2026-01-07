@@ -52,7 +52,7 @@ function CodeBlock({ inline, className, children }: CodeBlockProps) {
           <Copy className="h-4 w-4" />
         )}
       </button>
-      <pre className="overflow-x-auto p-4 pt-8 rounded-lg bg-[#1e1e1e] dark:bg-[#0d0d0d] text-[#d4d4d4]">
+      <pre className="overflow-x-auto p-4 pt-8 rounded-lg bg-[#1e1e1e] text-[#d4d4d4]">
         <code className={`font-mono text-sm ${className || ''}`}>
           {children}
         </code>

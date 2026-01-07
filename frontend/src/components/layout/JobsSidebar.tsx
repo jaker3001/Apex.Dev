@@ -7,26 +7,26 @@ import { useProjects, type Project } from '@/hooks/useProjects';
 
 // Status filter options
 const STATUS_FILTERS = [
-  { value: 'all', label: 'All', color: 'bg-slate-700 text-slate-200' },
-  { value: 'active', label: 'Active', color: 'bg-green-500/20 text-green-400' },
-  { value: 'pending', label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'lead', label: 'Lead', color: 'bg-blue-500/20 text-blue-400' },
-  { value: 'complete', label: 'Complete', color: 'bg-slate-500/20 text-slate-400' },
+  { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
+  { value: 'active', label: 'Active', color: 'bg-green-500/20 text-green-600 dark:text-green-400' },
+  { value: 'pending', label: 'Pending', color: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' },
+  { value: 'lead', label: 'Lead', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+  { value: 'complete', label: 'Complete', color: 'bg-muted-foreground/20 text-muted-foreground' },
 ];
 
 // Damage source icons
 function getDamageIcon(source?: string) {
   const s = source?.toLowerCase() || '';
   if (s.includes('water') || s.includes('sewage') || s.includes('flood')) {
-    return <Droplets className="h-3 w-3 text-blue-400" />;
+    return <Droplets className="h-3 w-3 text-blue-500 dark:text-blue-400" />;
   }
   if (s.includes('fire') || s.includes('smoke')) {
-    return <Flame className="h-3 w-3 text-orange-400" />;
+    return <Flame className="h-3 w-3 text-orange-500 dark:text-orange-400" />;
   }
   if (s.includes('mold')) {
-    return <AlertTriangle className="h-3 w-3 text-green-400" />;
+    return <AlertTriangle className="h-3 w-3 text-green-500 dark:text-green-400" />;
   }
-  return <Building className="h-3 w-3 text-slate-500" />;
+  return <Building className="h-3 w-3 text-muted-foreground" />;
 }
 
 interface JobItemProps {
@@ -42,7 +42,7 @@ function JobItem({ project, isActive }: JobItemProps) {
         'block p-2 rounded-lg transition-colors',
         isActive
           ? 'bg-primary/20 border border-primary/30'
-          : 'hover:bg-white/5'
+          : 'hover:bg-muted'
       )}
     >
       <div className="flex items-center gap-2">
@@ -88,9 +88,9 @@ export function JobsSidebar() {
   });
 
   return (
-    <aside className="w-64 h-full bg-background/50 border-r border-white/5 flex flex-col shrink-0">
+    <aside className="w-64 h-full bg-card/50 border-r border-border flex flex-col shrink-0">
       {/* Header with New Job button */}
-      <div className="p-3 border-b border-white/5">
+      <div className="p-3 border-b border-border">
         <Button
           className="w-full justify-start gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
           variant="outline"
@@ -102,7 +102,7 @@ export function JobsSidebar() {
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-white/5">
+      <div className="p-3 border-b border-border">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
@@ -110,13 +110,13 @@ export function JobsSidebar() {
             placeholder="Search jobs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-white/10 rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
 
       {/* Status Filters */}
-      <div className="p-3 border-b border-white/5">
+      <div className="p-3 border-b border-border">
         <p className="px-1 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Status
         </p>
@@ -129,7 +129,7 @@ export function JobsSidebar() {
                 'px-2 py-1 text-xs rounded-md transition-colors',
                 statusFilter === filter.value
                   ? filter.color
-                  : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
               )}
             >
               {filter.label}

@@ -22,7 +22,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       {/* Background Ambient Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[128px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-600/10 rounded-full blur-[128px]" />
@@ -33,7 +33,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-orange-600 mb-6 shadow-lg shadow-orange-900/20">
               <svg
-                className="w-8 h-8 text-white"
+                className="w-8 h-8 text-primary-foreground"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -46,7 +46,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Apex Assistant</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Apex Assistant</h1>
             <p className="text-muted-foreground mt-2">Sign in to your workspace</p>
           </div>
 
@@ -69,7 +69,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                className="w-full px-4 py-3 bg-muted/50 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="Enter your email"
                 required
                 disabled={isLoading}
@@ -85,7 +85,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                className="w-full px-4 py-3 bg-muted/50 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                 placeholder="Enter your password"
                 required
                 disabled={isLoading}

@@ -12,7 +12,7 @@ interface GlassCardProps {
 }
 
 /**
- * Glass-morphism card component adapted for Apex dark theme.
+ * Glass-morphism card component that adapts to light/dark themes.
  * Uses semi-transparent backgrounds with blur and subtle borders.
  */
 export function GlassCard({
@@ -31,16 +31,13 @@ export function GlassCard({
   };
 
   const baseClasses = cn(
-    // Glass morphism effect - dark theme
-    'bg-[#1a1a1a]/60',
-    'backdrop-blur-xl',
-    'border border-white/5',
-    'shadow-xl',
+    // Glass morphism effect - theme-aware
+    'glass-card',
     'rounded-2xl',
     // Padding
     paddingClasses[padding],
     // Optional hover effect
-    hover && 'transition-all duration-300 hover:bg-[#1a1a1a]/70 hover:border-white/10',
+    hover && 'transition-all duration-300',
     className
   );
 
@@ -76,8 +73,8 @@ export function GlassHeader({ children, className = '', icon, action }: GlassHea
     <div
       className={cn(
         'flex items-center justify-between',
-        'bg-[#1a1a1a]/40 backdrop-blur-md',
-        'border-b border-white/5',
+        'bg-card/40 backdrop-blur-md',
+        'border-b border-border',
         'px-5 py-3',
         'rounded-t-2xl',
         className
@@ -85,7 +82,7 @@ export function GlassHeader({ children, className = '', icon, action }: GlassHea
     >
       <div className="flex items-center gap-3">
         {icon && <span className="text-primary">{icon}</span>}
-        <h3 className="font-semibold text-white">{children}</h3>
+        <h3 className="font-semibold text-foreground">{children}</h3>
       </div>
       {action && <div>{action}</div>}
     </div>

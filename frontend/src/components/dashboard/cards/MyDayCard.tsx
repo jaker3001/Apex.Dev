@@ -84,8 +84,8 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
             <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-3">
               <Sun className="w-6 h-6 text-amber-400" />
             </div>
-            <p className="text-slate-400 text-sm font-medium">No tasks for today</p>
-            <p className="text-slate-500 text-xs mt-1">
+            <p className="text-muted-foreground text-sm font-medium">No tasks for today</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">
               Add tasks from Project Tasks to plan your day
             </p>
           </div>
@@ -97,19 +97,19 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
               return (
                 <div
                   key={task.id}
-                  className="group flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/50 transition-colors"
+                  className="group flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
                 >
                   <button
                     onClick={(e) => handleComplete(e, task.id)}
                     disabled={completeTask.isPending}
-                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-slate-500 hover:border-green-500 hover:bg-green-500/20 transition-colors flex items-center justify-center"
+                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-border hover:border-green-500 dark:hover:border-green-400 hover:bg-green-500/20 transition-colors flex items-center justify-center"
                   >
-                    <Check className="w-3 h-3 text-transparent group-hover:text-green-500" />
+                    <Check className="w-3 h-3 text-transparent group-hover:text-green-500 dark:group-hover:text-green-400" />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{task.title}</p>
+                    <p className="text-sm text-foreground truncate">{task.title}</p>
                     {timeLabel && (
-                      <div className="flex items-center gap-1 text-xs text-slate-400">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         {timeLabel}
                       </div>
@@ -118,7 +118,7 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
                   <button
                     onClick={(e) => handleRemove(e, task.id)}
                     disabled={removeFromMyDay.isPending}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-400 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 transition-all"
                     title="Remove from My Day"
                   >
                     <X className="w-4 h-4" />
@@ -130,8 +130,8 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
             {/* Completed tasks */}
             {completedTasks.length > 0 && (
               <>
-                <div className="flex items-center gap-2 pt-2 mt-2 border-t border-slate-700/50">
-                  <span className="text-xs text-slate-500">Completed ({completedTasks.length})</span>
+                <div className="flex items-center gap-2 pt-2 mt-2 border-t border-border">
+                  <span className="text-xs text-muted-foreground">Completed ({completedTasks.length})</span>
                 </div>
                 {completedTasks.slice(0, 3).map((task) => (
                   <div
@@ -139,9 +139,9 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
                     className="flex items-center gap-2 p-2 opacity-50"
                   >
                     <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-green-500" />
+                      <Check className="w-3 h-3 text-green-500 dark:text-green-400" />
                     </div>
-                    <p className="text-sm text-slate-400 truncate line-through">{task.title}</p>
+                    <p className="text-sm text-muted-foreground truncate line-through">{task.title}</p>
                   </div>
                 ))}
               </>
@@ -152,8 +152,8 @@ export function MyDayCard({ onViewAll }: MyDayCardProps) {
 
       {/* Progress bar */}
       {totalCount > 0 && (
-        <div className="px-4 py-2 border-t border-slate-700/50">
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div className="px-4 py-2 border-t border-border">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-amber-500 rounded-full transition-all duration-500"
               style={{ width: `${(completedCount / totalCount) * 100}%` }}

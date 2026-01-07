@@ -34,12 +34,12 @@ export function NotificationsCard() {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-rose-400" />
-          <h3 className="font-semibold text-white">Notifications</h3>
+          <h3 className="font-semibold text-foreground">Notifications</h3>
           {unreadCount > 0 && (
             <span className="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full">
               {unreadCount}
@@ -47,7 +47,7 @@ export function NotificationsCard() {
           )}
         </div>
         <button
-          className="text-sm text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
         >
           View all
           <ChevronRight className="w-4 h-4" />
@@ -62,9 +62,9 @@ export function NotificationsCard() {
           </div>
         ) : notifications.length === 0 ? (
           <div className="text-center py-8">
-            <Bell className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-400 text-sm">No notifications</p>
-            <p className="text-slate-500 text-xs mt-1">You're all caught up!</p>
+            <Bell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">No notifications</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">You're all caught up!</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -98,8 +98,8 @@ function NotificationRow({
       className={cn(
         'flex items-start gap-3 p-2 rounded-lg transition-colors cursor-pointer',
         notification.is_read
-          ? 'hover:bg-slate-700/50'
-          : 'bg-slate-700/30 hover:bg-slate-700/50'
+          ? 'hover:bg-muted'
+          : 'bg-muted hover:bg-muted'
       )}
     >
       <div className={cn('mt-0.5', colorClass)}>
@@ -109,15 +109,15 @@ function NotificationRow({
         <p
           className={cn(
             'text-sm truncate',
-            notification.is_read ? 'text-slate-400' : 'text-white font-medium'
+            notification.is_read ? 'text-muted-foreground' : 'text-foreground font-medium'
           )}
         >
           {notification.title}
         </p>
         {notification.message && (
-          <p className="text-xs text-slate-500 truncate">{notification.message}</p>
+          <p className="text-xs text-muted-foreground/60 truncate">{notification.message}</p>
         )}
-        <p className="text-xs text-slate-600 mt-0.5">
+        <p className="text-xs text-muted-foreground/40 mt-0.5">
           {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
         </p>
       </div>
