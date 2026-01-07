@@ -13,8 +13,15 @@ export interface TaskList {
   is_system: boolean;
   sort_order: number;
   task_count: number;
+  show_completed?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface RecurrenceConfig {
+  interval: number;
+  unit: 'days' | 'weeks' | 'months' | 'years';
+  days?: string[]; // For weekly: ["Monday", "Wednesday"]
 }
 
 export interface Task {
@@ -24,6 +31,7 @@ export interface Task {
   parent_id?: number;
   title: string;
   description?: string;
+  notes?: string; // Detailed markdown notes
   status: 'open' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'none' | 'low' | 'medium' | 'high';
   due_date?: string;
@@ -32,6 +40,7 @@ export interface Task {
   is_my_day: boolean;
   my_day_date?: string;
   project_id?: number;
+  reminder_at?: string;
   recurrence_rule?: string;
   completed_at?: string;
   sort_order: number;
@@ -59,6 +68,38 @@ export interface TaskFilters {
   is_important?: boolean;
   due_date?: string;
   view?: 'my_day' | 'important' | 'planned';
+}
+
+export interface TaskCreateData {
+  title: string;
+  list_id?: number;
+  parent_id?: number;
+  description?: string;
+  notes?: string;
+  priority?: string;
+  due_date?: string;
+  due_time?: string;
+  is_important?: boolean;
+  is_my_day?: boolean;
+  project_id?: number;
+  reminder_at?: string;
+  recurrence?: RecurrenceConfig;
+}
+
+export interface TaskUpdateData {
+  title?: string;
+  description?: string;
+  notes?: string;
+  list_id?: number;
+  status?: string;
+  priority?: string;
+  due_date?: string;
+  due_time?: string;
+  is_important?: boolean;
+  is_my_day?: boolean;
+  sort_order?: number;
+  reminder_at?: string;
+  recurrence?: RecurrenceConfig;
 }
 
 // API functions
@@ -131,18 +172,7 @@ async function deleteTaskList(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete task list');
 }
 
-async function createTask(data: {
-  title: string;
-  list_id?: number;
-  parent_id?: number;
-  description?: string;
-  priority?: string;
-  due_date?: string;
-  due_time?: string;
-  is_important?: boolean;
-  is_my_day?: boolean;
-  project_id?: number;
-}): Promise<Task> {
+async function createTask(data: TaskCreateData): Promise<Task> {
   const res = await fetch(`${API_BASE}/api/tasks`, {
     method: 'POST',
     headers: {
@@ -155,7 +185,7 @@ async function createTask(data: {
   return res.json();
 }
 
-async function updateTask(id: number, data: Partial<Task>): Promise<Task> {
+async function updateTask(id: number, data: TaskUpdateData): Promise<Task> {
   const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
     method: 'PATCH',
     headers: {
@@ -201,6 +231,18 @@ async function removeFromMyDay(id: number): Promise<Task> {
   });
   if (!res.ok) throw new Error('Failed to remove from My Day');
   return res.json();
+}
+
+async function reorderTasks(updates: { id: number; sort_order: number }[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/tasks/reorder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ updates }),
+  });
+  if (!res.ok) throw new Error('Failed to reorder tasks');
 }
 
 // Hooks
@@ -270,7 +312,7 @@ export function useCreateTask() {
 export function useUpdateTask() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Task> }) => updateTask(id, data),
+    mutationFn: ({ id, data }: { id: number; data: TaskUpdateData }) => updateTask(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task', id] });
@@ -320,6 +362,16 @@ export function useRemoveFromMyDay() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task', id] });
+    },
+  });
+}
+
+export function useReorderTasks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderTasks,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }
