@@ -91,3 +91,6 @@ nanobanana-output/
 
 # Git worktrees
 .worktrees/
+
+# Claude Code local files
+.claude/
