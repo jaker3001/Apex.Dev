@@ -14,6 +14,7 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TasksPage } from './pages/TasksPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
 import { ChatProvider } from './contexts/ChatContext';
@@ -53,6 +54,9 @@ function AuthenticatedApp() {
 
           {/* Tasks Section */}
           <Route path="tasks" element={<TasksPage />} />
+
+          {/* Calendar Section */}
+          <Route path="calendar" element={<CalendarPage />} />
 
           {/* Settings Section with Layout */}
           <Route path="settings" element={<SettingsLayout />}>
