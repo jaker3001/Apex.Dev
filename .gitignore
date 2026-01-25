@@ -94,3 +94,6 @@ nanobanana-output/
 
 # Claude Code local files
 .claude/
+
+# Obsidian vault config (local only)
+.obsidian/
