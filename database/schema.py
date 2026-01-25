@@ -256,10 +256,32 @@ def init_database(db_path: Optional[Path] = None) -> None:
     # =========================================================================
     _run_migrations(cursor)
 
+    # =========================================================================
+    # CREATE DEFAULT TEST USER (for development)
+    # =========================================================================
+    _create_default_test_user(cursor)
+
     conn.commit()
     conn.close()
 
     print(f"Database initialized at: {db_path or DEFAULT_DB_PATH}")
+
+
+def _create_default_test_user(cursor: sqlite3.Cursor) -> None:
+    """Create a default test user if it doesn't exist.
+
+    This ensures the hardcoded user in require_auth (id=1) actually exists
+    in the database to satisfy foreign key constraints.
+    """
+    cursor.execute("SELECT id FROM users WHERE id = 1")
+    if cursor.fetchone() is None:
+        # Create default test user with id=1
+        # Password hash is for "password123" using bcrypt
+        cursor.execute("""
+            INSERT INTO users (id, email, password_hash, display_name, role, is_active)
+            VALUES (1, 'test@apexrestoration.pro', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VU9QDFkQGzHVvi', 'Test User', 'admin', 1)
+        """)
+        print("Created default test user (id=1)")
 
 
 def _run_migrations(cursor: sqlite3.Cursor) -> None:

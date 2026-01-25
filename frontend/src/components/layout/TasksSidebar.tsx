@@ -88,9 +88,9 @@ export function TasksSidebar() {
         />
         <SidebarItem
           icon={Inbox}
-          label="Inbox"
-          isSelected={selectedView === 'inbox'}
-          onClick={() => handleViewSelect('inbox')}
+          label="All"
+          isSelected={selectedView === 'all'}
+          onClick={() => handleViewSelect('all')}
           color="#3B82F6"
         />
       </div>
@@ -106,7 +106,7 @@ export function TasksSidebar() {
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
-        {lists.map(list => (
+        {lists.filter(list => !list.is_system).map(list => (
           <SidebarItem
             key={list.id}
             icon={List}
