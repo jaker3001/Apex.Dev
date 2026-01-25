@@ -9,12 +9,12 @@ interface MarkdownRendererProps {
 }
 
 interface CodeBlockProps {
-  inline?: boolean;
+  isInline: boolean;
   className?: string;
   children?: React.ReactNode;
 }
 
-function CodeBlock({ inline, className, children }: CodeBlockProps) {
+function CodeBlock({ isInline, className, children }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || '');
   const language = match ? match[1] : '';
@@ -26,7 +26,7 @@ function CodeBlock({ inline, className, children }: CodeBlockProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (inline) {
+  if (isInline) {
     return (
       <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-sm">
         {children}
@@ -68,11 +68,18 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
         remarkPlugins={[remarkGfm]}
         components={{
           // Code blocks and inline code
-          code: ({ inline, className, children }: CodeBlockProps) => (
-            <CodeBlock inline={inline} className={className}>
-              {children}
-            </CodeBlock>
-          ),
+          // In react-markdown v9+, inline prop is no longer passed directly
+          // We detect inline code by checking className and content
+          code: ({ className, children }) => {
+            // Block code has a language class (language-*) and/or contains newlines
+            // Inline code has neither
+            const isInline = !className && !String(children).includes('\n');
+            return (
+              <CodeBlock isInline={isInline} className={className}>
+                {children}
+              </CodeBlock>
+            );
+          },
           // Headings
           h1: ({ children }) => (
             <h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0">{children}</h1>

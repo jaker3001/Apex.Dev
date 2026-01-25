@@ -183,6 +183,8 @@ class CalendarEventResponse(BaseModel):
     location: Optional[str] = None
     all_day: bool = False
     html_link: Optional[str] = None
+    attendees: Optional[list[str]] = None
+    calendar_id: Optional[str] = None
 
 
 class CalendarEventsListResponse(BaseModel):

@@ -76,6 +76,8 @@ export interface CalendarEvent {
   all_day: boolean;
   status?: string;
   attendees?: string[];
+  html_link?: string;
+  calendar_id?: string;
 }
 
 export interface CalendarEventsResponse {
