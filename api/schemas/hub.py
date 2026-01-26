@@ -195,6 +195,39 @@ class CalendarEventsListResponse(BaseModel):
     end_date: str
 
 
+# Calendar (My Calendars) schemas
+class CalendarCreate(BaseModel):
+    """Create a new calendar."""
+    name: str
+    color: str = "#8b5cf6"
+    description: Optional[str] = None
+
+
+class CalendarUpdate(BaseModel):
+    """Update a calendar."""
+    name: Optional[str] = None
+    color: Optional[str] = None
+    description: Optional[str] = None
+    is_visible: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class CalendarResponse(BaseModel):
+    """Calendar response."""
+    id: int
+    name: str
+    color: str
+    description: Optional[str] = None
+    is_visible: bool = True
+    is_default: bool = False
+    sort_order: int = 0
+
+
+class CalendarsListResponse(BaseModel):
+    """List of calendars."""
+    calendars: list[CalendarResponse]
+
+
 # =============================================================================
 # WEATHER SCHEMAS
 # =============================================================================
@@ -230,3 +263,33 @@ class WeatherResponse(BaseModel):
     forecast: list[WeatherForecastDay]
     alerts: list[str] = []
     last_updated: str
+
+
+# =============================================================================
+# AGENDA SCHEMAS (MERGED EVENTS + TASKS)
+# =============================================================================
+
+class AgendaItem(BaseModel):
+    """Unified agenda item - can be event or task."""
+    id: str  # "event_123" or "task_456"
+    type: Literal["event", "task"]
+    title: str
+    description: Optional[str] = None
+    start: str  # ISO datetime
+    end: Optional[str] = None  # ISO datetime (tasks may not have end)
+    all_day: bool = False
+    location: Optional[str] = None
+    # Task-specific fields
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    is_important: Optional[bool] = None
+    # Event-specific fields
+    calendar_id: Optional[int] = None
+    color: Optional[str] = None
+
+
+class AgendaResponse(BaseModel):
+    """Agenda response with merged events and tasks."""
+    items: list[AgendaItem]
+    start_date: str
+    end_date: str

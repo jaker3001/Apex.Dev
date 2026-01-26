@@ -12,19 +12,23 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from api.routes.auth import require_auth, UserResponse
 from api.repositories.event_repository import EventRepository
+from api.repositories.task_repository import TaskRepository
 from api.schemas.hub import (
     CalendarEventCreate,
     CalendarEventUpdate,
     CalendarEventResponse,
     CalendarEventsListResponse,
+    AgendaItem,
+    AgendaResponse,
 )
 
 logger = logging.getLogger("apex_assistant.calendar")
 
 router = APIRouter()
 
-# Repository instance
+# Repository instances
 event_repo = EventRepository()
+task_repo = TaskRepository()
 
 
 def get_date_range(view: str, start_date: Optional[str] = None) -> tuple[str, str]:
@@ -311,3 +315,68 @@ async def delete_calendar_event(
             status_code=500,
             detail=f"Failed to delete event: {str(e)}"
         )
+
+
+@router.get("/calendar/agenda")
+async def get_agenda_items(
+    start_date: str,
+    end_date: str,
+    current_user: UserResponse = Depends(require_auth)
+):
+    """
+    Get merged agenda items (events + scheduled tasks) for a date range.
+    """
+    user_id = str(current_user.id)
+
+    # Fetch events
+    db_events = await event_repo.find_by_date_range(user_id, start_date, end_date)
+
+    # Fetch tasks with due dates in range
+    tasks = await task_repo.find_by_due_date_range(user_id, start_date, end_date)
+
+    # Convert to unified AgendaItem format
+    agenda_items = []
+
+    for event in db_events:
+        agenda_items.append({
+            "id": f"event_{event.id}",
+            "type": "event",
+            "title": event.title,
+            "description": event.description,
+            "start": event.start_time,
+            "end": event.end_time,
+            "all_day": event.all_day,
+            "location": event.location,
+            "calendar_id": None,  # Will be populated when calendars are linked
+            "color": event.color,
+        })
+
+    for task in tasks:
+        # Build datetime from due_date and due_time
+        task_start = task.due_date
+        if task.due_time:
+            task_start = f"{task.due_date}T{task.due_time}:00"
+        else:
+            task_start = f"{task.due_date}T00:00:00"
+
+        agenda_items.append({
+            "id": f"task_{task.id}",
+            "type": "task",
+            "title": task.title,
+            "description": task.description,
+            "start": task_start,
+            "end": None,
+            "all_day": task.due_time is None,
+            "status": task.status,
+            "priority": task.priority,
+            "is_important": task.is_important,
+        })
+
+    # Sort by start datetime
+    agenda_items.sort(key=lambda x: x["start"])
+
+    return {
+        "items": agenda_items,
+        "start_date": start_date,
+        "end_date": end_date,
+    }

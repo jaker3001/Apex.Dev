@@ -246,3 +246,41 @@ class TaskRepository(BaseRepository[TaskResponse]):
                 logger.warning(f"Failed to reorder task {task_id}: {e}")
 
         return updated_tasks
+
+    async def find_by_due_date_range(
+        self,
+        user_id: str,
+        start_date: str,
+        end_date: str,
+        include_completed: bool = False,
+    ) -> List[TaskResponse]:
+        """
+        Find tasks with due dates within a date range.
+
+        Args:
+            user_id: User UUID
+            start_date: ISO date string for range start
+            end_date: ISO date string for range end
+            include_completed: Whether to include completed tasks
+
+        Returns:
+            List of tasks with due dates in the range
+        """
+        try:
+            query = (
+                self._get_table()
+                .select("*")
+                .eq("user_id", user_id)
+                .not_.is_("due_date", "null")
+                .gte("due_date", start_date.split("T")[0])
+                .lte("due_date", end_date.split("T")[0])
+            )
+
+            if not include_completed:
+                query = query.neq("status", "completed").neq("status", "cancelled")
+
+            result = query.order("due_date").order("due_time").execute()
+            return [self.model(**item) for item in result.data]
+        except Exception as e:
+            logger.error(f"Error finding tasks by due date range: {e}")
+            raise handle_supabase_error(e)
