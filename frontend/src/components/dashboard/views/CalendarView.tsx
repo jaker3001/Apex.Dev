@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Circle,
 } from 'lucide-react';
+import { MarkdownEditor } from '@/components/tasks/editor/MarkdownEditor';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import {
   useCalendarEvents,
   useCreateCalendarEvent,
@@ -485,15 +487,14 @@ function CreateEventModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
               Description
             </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none resize-none"
-              placeholder="Add description"
-              rows={3}
+            <MarkdownEditor
+              value={formData.description || ''}
+              onChange={(value) => setFormData({ ...formData, description: value })}
+              placeholder="Add description (supports markdown)..."
+              minRows={4}
             />
           </div>
 
@@ -665,15 +666,14 @@ function EventDetailModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 Description
               </label>
-              <textarea
+              <MarkdownEditor
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none resize-none"
-                placeholder="Add description"
-                rows={3}
+                onChange={(value) => setFormData({ ...formData, description: value })}
+                placeholder="Add description (supports markdown)..."
+                minRows={4}
               />
             </div>
 
@@ -766,7 +766,9 @@ function EventDetailModal({
 
           {event.description && (
             <div className="pt-2 border-t border-slate-700">
-              <p className="text-sm text-slate-300 whitespace-pre-wrap">{event.description}</p>
+              <div className="prose prose-sm prose-invert max-w-none">
+                <MarkdownRenderer content={event.description} />
+              </div>
             </div>
           )}
         </div>
