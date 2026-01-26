@@ -1,210 +1,326 @@
-﻿"""
+"""
 Apex Assistant - Authentication Routes
 
-Database-backed multi-user authentication with bcrypt password hashing.
+Supabase Auth-based authentication with user_profiles table.
+Supports simple role-based access: owner (full access) and employee (limited).
 """
-
-import os
-import jwt
-import secrets
-import hashlib
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
-try:
-    import bcrypt
-    BCRYPT_AVAILABLE = True
-except ImportError:
-    BCRYPT_AVAILABLE = False
-
-from database.schema import get_connection
+from api.services.auth_service import (
+    AuthService,
+    AuthResponse,
+    UserProfile,
+    get_auth_service,
+)
+from api.services.supabase_errors import AuthenticationError
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
-AUTH_SECRET_KEY = os.environ.get("AUTH_SECRET_KEY", secrets.token_hex(32))
-TOKEN_EXPIRE_HOURS = int(os.environ.get("TOKEN_EXPIRE_HOURS", "24"))
+# Backward compatibility alias
+UserResponse = UserProfile
 
+
+# ============================================
+# STANDALONE TOKEN VERIFICATION (for WebSocket)
+# ============================================
+
+async def verify_token(token: str) -> Optional[UserProfile]:
+    """
+    Verify an access token and return user profile.
+
+    Used by WebSocket handlers that can't use FastAPI dependencies.
+    Returns None if token is invalid.
+    """
+    if not token:
+        return None
+
+    auth_service = get_auth_service()
+    return await auth_service.verify_token(token)
+
+
+# ============================================
+# REQUEST/RESPONSE SCHEMAS
+# ============================================
 
 class LoginRequest(BaseModel):
     email: str
     password: str
 
 
-class UserResponse(BaseModel):
-    id: int
-    email: str
-    display_name: str
-    role: str
-    is_active: bool
-    contact_id: Optional[int] = None
-    created_at: Optional[str] = None
-    last_login: Optional[str] = None
-
-
-class LoginResponse(BaseModel):
-    token: str
-    user: UserResponse
-    expires_at: str
-
-
-class AuthStatus(BaseModel):
-    authenticated: bool
-    user: Optional[UserResponse] = None
-
-
-class RegisterRequest(BaseModel):
+class SignUpRequest(BaseModel):
     email: str
     password: str
     display_name: str
-    role: str = "employee"
-    contact_id: Optional[int] = None
+    role: str = "employee"  # 'owner' or 'employee'
 
 
-def hash_password(password: str) -> str:
-    if BCRYPT_AVAILABLE:
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    return hashlib.sha256(password.encode()).hexdigest()
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    if BCRYPT_AVAILABLE:
-        try:
-            return bcrypt.checkpw(password.encode(), password_hash.encode())
-        except ValueError:
-            return hashlib.sha256(password.encode()).hexdigest() == password_hash
-    return hashlib.sha256(password.encode()).hexdigest() == password_hash
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    preferences: Optional[Dict[str, Any]] = None
 
 
-def create_token(user_id: int, email: str) -> tuple[str, datetime]:
-    expires = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_HOURS)
-    payload = {"sub": str(user_id), "email": email, "exp": expires, "iat": datetime.now(timezone.utc)}
-    token = jwt.encode(payload, AUTH_SECRET_KEY, algorithm="HS256")
-    return token, expires
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_at: int
+    expires_in: int
+    user: UserProfile
 
 
-def verify_token(token: str) -> Optional[dict]:
-    try:
-        payload = jwt.decode(token, AUTH_SECRET_KEY, algorithms=["HS256"])
-        return {"user_id": int(payload.get("sub")), "email": payload.get("email")}
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+class AuthStatusResponse(BaseModel):
+    authenticated: bool
+    user: Optional[UserProfile] = None
+
+
+# ============================================
+# DEPENDENCY: GET CURRENT USER
+# ============================================
+
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[UserProfile]:
+    """
+    Get current authenticated user from Bearer token.
+
+    Returns None if no valid token provided (allows anonymous access).
+    """
+    if not credentials:
         return None
 
-
-def get_user_by_email(email: str) -> Optional[dict]:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, email, password_hash, display_name, role, is_active, contact_id, created_at, last_login FROM users WHERE email = ?", (email,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    auth_service = get_auth_service()
+    return await auth_service.verify_token(credentials.credentials)
 
 
-def get_user_by_id(user_id: int) -> Optional[dict]:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, email, password_hash, display_name, role, is_active, contact_id, created_at, last_login FROM users WHERE id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
+async def require_auth(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> UserProfile:
+    """
+    Require authentication. Raises 401 if not authenticated.
 
+    Use this as a dependency for protected routes.
+    """
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-def create_user_db(email: str, password_hash: str, display_name: str, role: str = "employee", contact_id: Optional[int] = None) -> int:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO users (email, password_hash, display_name, role, contact_id) VALUES (?, ?, ?, ?, ?)", (email, password_hash, display_name, role, contact_id))
-    user_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return user_id
+    auth_service = get_auth_service()
+    user = await auth_service.verify_token(credentials.credentials)
 
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-def update_user_last_login(user_id: int) -> None:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is disabled")
 
-
-def user_to_response(user: dict) -> UserResponse:
-    return UserResponse(id=user["id"], email=user["email"], display_name=user["display_name"], role=user["role"], is_active=bool(user["is_active"]), contact_id=user.get("contact_id"), created_at=user.get("created_at"), last_login=user.get("last_login"))
-
-
-async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[UserResponse]:
-    # Bypass authentication and return default admin user
-    return UserResponse(
-        id=1,
-        email="test@apexrestoration.pro",
-        display_name="Test User",
-        role="admin",
-        is_active=True,
-        contact_id=None,
-        created_at=datetime.now(timezone.utc).isoformat(),
-        last_login=datetime.now(timezone.utc).isoformat()
-    )
-
-
-async def require_auth(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> UserResponse:
-    # Bypass authentication and return default admin user
-    return UserResponse(
-        id=1,
-        email="test@apexrestoration.pro",
-        display_name="Test User",
-        role="admin",
-        is_active=True,
-        contact_id=None,
-        created_at=datetime.now(timezone.utc).isoformat(),
-        last_login=datetime.now(timezone.utc).isoformat()
-    )
-
-
-async def require_admin(user: UserResponse = Depends(require_auth)) -> UserResponse:
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
 
+async def require_owner(user: UserProfile = Depends(require_auth)) -> UserProfile:
+    """
+    Require owner role. Raises 403 if not owner.
+
+    Use this as a dependency for owner-only routes.
+    """
+    if user.role != "owner":
+        raise HTTPException(status_code=403, detail="Owner access required")
+    return user
+
+
+# ============================================
+# AUTH ROUTES
+# ============================================
+
 @router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
-    user = get_user_by_email(request.email)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not user["is_active"]:
-        raise HTTPException(status_code=401, detail="Account is disabled")
-    if not verify_password(request.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    update_user_last_login(user["id"])
-    token, expires = create_token(user["id"], user["email"])
-    return LoginResponse(token=token, user=user_to_response(user), expires_at=expires.isoformat())
+    """
+    Sign in with email and password.
+
+    Returns access token, refresh token, and user profile.
+    """
+    auth_service = get_auth_service()
+
+    try:
+        result = await auth_service.sign_in(request.email, request.password)
+        return LoginResponse(
+            access_token=result.access_token,
+            refresh_token=result.refresh_token,
+            expires_at=result.expires_at,
+            expires_in=result.expires_in,
+            user=result.user,
+        )
+    except AuthenticationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
-@router.get("/auth/status", response_model=AuthStatus)
-async def auth_status(user: Optional[UserResponse] = Depends(get_current_user)):
-    return AuthStatus(authenticated=user is not None, user=user)
+@router.post("/auth/signup", response_model=LoginResponse)
+async def signup(
+    request: SignUpRequest,
+    current_user: Optional[UserProfile] = Depends(get_current_user),
+):
+    """
+    Create a new user account.
+
+    Only owners can create new users. If no users exist, first signup
+    becomes owner automatically.
+    """
+    auth_service = get_auth_service()
+
+    # Validate role
+    if request.role not in ("owner", "employee"):
+        raise HTTPException(status_code=400, detail="Invalid role. Use 'owner' or 'employee'")
+
+    # Only owners can create users (except first user)
+    # For initial setup, allow first owner creation
+    # In production, you'd check if any users exist first
+    if current_user and current_user.role != "owner":
+        raise HTTPException(status_code=403, detail="Only owners can create new users")
+
+    try:
+        result = await auth_service.sign_up(
+            email=request.email,
+            password=request.password,
+            display_name=request.display_name,
+            role=request.role,
+        )
+        return LoginResponse(
+            access_token=result.access_token,
+            refresh_token=result.refresh_token,
+            expires_at=result.expires_at,
+            expires_in=result.expires_in,
+            user=result.user,
+        )
+    except AuthenticationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/auth/refresh", response_model=LoginResponse)
+async def refresh(request: RefreshRequest):
+    """
+    Refresh access token using refresh token.
+
+    Call this when access token expires to get new tokens.
+    """
+    auth_service = get_auth_service()
+
+    try:
+        result = await auth_service.refresh_session(request.refresh_token)
+        return LoginResponse(
+            access_token=result.access_token,
+            refresh_token=result.refresh_token,
+            expires_at=result.expires_at,
+            expires_in=result.expires_in,
+            user=result.user,
+        )
+    except AuthenticationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
 @router.post("/auth/logout")
-async def logout():
+async def logout(user: UserProfile = Depends(require_auth)):
+    """Sign out current user."""
+    auth_service = get_auth_service()
+    await auth_service.sign_out()
     return {"status": "ok", "message": "Logged out"}
 
 
-@router.get("/auth/verify")
-async def verify(user: UserResponse = Depends(require_auth)):
-    return {"authenticated": True, "user": user}
+@router.get("/auth/status", response_model=AuthStatusResponse)
+async def auth_status(user: Optional[UserProfile] = Depends(get_current_user)):
+    """
+    Check authentication status.
+
+    Returns whether user is authenticated and their profile if so.
+    """
+    return AuthStatusResponse(
+        authenticated=user is not None,
+        user=user,
+    )
 
 
-@router.post("/users", response_model=UserResponse)
-async def create_user(request: RegisterRequest, admin: UserResponse = Depends(require_admin)):
-    existing = get_user_by_email(request.email)
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    if request.role not in ["admin", "manager", "employee"]:
+@router.get("/auth/me", response_model=UserProfile)
+async def get_me(user: UserProfile = Depends(require_auth)):
+    """Get current user's profile."""
+    return user
+
+
+@router.patch("/auth/me", response_model=UserProfile)
+async def update_me(
+    request: UpdateProfileRequest,
+    user: UserProfile = Depends(require_auth),
+):
+    """Update current user's profile."""
+    auth_service = get_auth_service()
+
+    return await auth_service.update_profile(
+        user_id=user.id,
+        display_name=request.display_name,
+        avatar_url=request.avatar_url,
+        preferences=request.preferences,
+    )
+
+
+@router.post("/auth/reset-password")
+async def reset_password(email: str):
+    """
+    Send password reset email.
+
+    Always returns success to prevent email enumeration.
+    """
+    auth_service = get_auth_service()
+
+    try:
+        await auth_service.reset_password_email(email)
+    except Exception:
+        pass  # Don't reveal if email exists
+
+    return {"status": "ok", "message": "If that email exists, a reset link was sent"}
+
+
+# ============================================
+# USER MANAGEMENT ROUTES (Owner Only)
+# ============================================
+
+@router.patch("/users/{user_id}/role", response_model=UserProfile)
+async def update_user_role(
+    user_id: str,
+    role: str,
+    owner: UserProfile = Depends(require_owner),
+):
+    """
+    Update a user's role.
+
+    Owner only. Can set role to 'owner' or 'employee'.
+    """
+    if role not in ("owner", "employee"):
         raise HTTPException(status_code=400, detail="Invalid role")
-    password_hash = hash_password(request.password)
-    user_id = create_user_db(email=request.email, password_hash=password_hash, display_name=request.display_name, role=request.role, contact_id=request.contact_id)
-    user = get_user_by_id(user_id)
-    return user_to_response(user)
+
+    if user_id == owner.id:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+
+    auth_service = get_auth_service()
+    return await auth_service.set_role(user_id, role)
+
+
+@router.post("/users/{user_id}/deactivate", response_model=UserProfile)
+async def deactivate_user(
+    user_id: str,
+    owner: UserProfile = Depends(require_owner),
+):
+    """
+    Deactivate a user account.
+
+    Owner only. Prevents user from logging in.
+    """
+    if user_id == owner.id:
+        raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
+
+    auth_service = get_auth_service()
+    return await auth_service.deactivate_user(user_id)

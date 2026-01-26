@@ -45,20 +45,33 @@ from database.schema_hub import init_hub_tables
 from database.schema_pkm import init_pkm_tables
 from api.routes import chat, agents, skills, mcp, analytics, conversations, projects, auth, chat_projects, contacts, tasks
 from api.routes import inbox, notifications, time_tracking, calendar, weather, pkm, drying, google_auth
+# New Second Brain routes
+from api.routes import tags, goals, personal_projects, people, notes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler - runs on startup and shutdown."""
-    # Startup
-    init_database()
-    logger.info("Assistant database initialized")
-    init_apex_ops_database()
-    logger.info("Operations database initialized")
-    init_hub_tables()
-    logger.info("Hub tables initialized")
-    init_pkm_tables()
-    logger.info("PKM tables initialized")
+    # Startup - SQLite initialization (legacy, will be removed after migration)
+    import os
+    skip_sqlite = os.environ.get("SKIP_SQLITE_INIT", "false").lower() == "true"
+
+    if not skip_sqlite:
+        try:
+            init_database()
+            logger.info("Assistant database initialized")
+            init_apex_ops_database()
+            logger.info("Operations database initialized")
+            init_hub_tables()
+            logger.info("Hub tables initialized")
+            init_pkm_tables()
+            logger.info("PKM tables initialized")
+        except Exception as e:
+            logger.warning(f"SQLite initialization skipped or failed: {e}")
+            logger.info("Continuing with Supabase-only mode")
+    else:
+        logger.info("SQLite initialization skipped (SKIP_SQLITE_INIT=true)")
+
     yield
     # Shutdown
     logger.info("Shutting down API server")
@@ -116,6 +129,12 @@ app.include_router(weather.router, prefix="/api", tags=["weather"])
 app.include_router(pkm.router, prefix="/api", tags=["pkm"])
 app.include_router(drying.router, prefix="/api", tags=["drying"])
 app.include_router(google_auth.router, prefix="/api", tags=["google-auth"])
+# Second Brain routes
+app.include_router(tags.router, prefix="/api", tags=["tags"])
+app.include_router(goals.router, prefix="/api", tags=["goals"])
+app.include_router(personal_projects.router, prefix="/api", tags=["personal-projects"])
+app.include_router(people.router, prefix="/api", tags=["people"])
+app.include_router(notes.router, prefix="/api", tags=["notes"])
 
 # Serve static frontend files in production (must be last to not override API routes)
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
