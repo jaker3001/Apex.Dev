@@ -161,6 +161,10 @@ class GoogleCalendarService:
         """
         user_id = state  # State contains the user_id
 
+        # Relax scope validation - Google may return additional scopes
+        # that were previously granted to other apps
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+
         flow = self.get_oauth_flow()
         flow.fetch_token(code=code)
 

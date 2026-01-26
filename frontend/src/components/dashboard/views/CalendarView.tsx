@@ -8,11 +8,13 @@ import {
   Plus,
   X,
   Trash2,
+  Pencil,
   AlertCircle,
 } from 'lucide-react';
 import {
   useCalendarEvents,
   useCreateCalendarEvent,
+  useUpdateCalendarEvent,
   useDeleteCalendarEvent,
   type CalendarEvent,
   type CalendarEventCreateInput,
@@ -468,7 +470,7 @@ function CreateEventModal({
   );
 }
 
-// Event Detail Modal
+// Event Detail Modal with Edit capability
 function EventDetailModal({
   event,
   onClose,
@@ -476,6 +478,18 @@ function EventDetailModal({
   event: CalendarEvent;
   onClose: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    summary: event.summary,
+    description: event.description || '',
+    location: event.location || '',
+    start: format(parseISO(event.start), "yyyy-MM-dd'T'HH:mm"),
+    end: format(parseISO(event.end), "yyyy-MM-dd'T'HH:mm"),
+    all_day: event.all_day,
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const updateEvent = useUpdateCalendarEvent();
   const deleteEvent = useDeleteCalendarEvent();
   const startTime = parseISO(event.start);
   const endTime = parseISO(event.end);
@@ -491,12 +505,164 @@ function EventDetailModal({
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!formData.summary.trim()) {
+      setError('Event title is required');
+      return;
+    }
+
+    try {
+      await updateEvent.mutateAsync({
+        id: event.id,
+        event: {
+          summary: formData.summary,
+          description: formData.description || undefined,
+          location: formData.location || undefined,
+          start: new Date(formData.start).toISOString(),
+          end: new Date(formData.end).toISOString(),
+        },
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update event');
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-md mx-4 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+            <h3 className="text-lg font-semibold text-white">Edit Event</h3>
+            <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSave} className="p-6 space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={formData.summary}
+                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                placeholder="Event title"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="edit_all_day"
+                checked={formData.all_day}
+                onChange={(e) => setFormData({ ...formData, all_day: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-purple-500 focus:ring-purple-500"
+              />
+              <label htmlFor="edit_all_day" className="text-sm text-slate-300">
+                All day event
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Start
+                </label>
+                <input
+                  type={formData.all_day ? 'date' : 'datetime-local'}
+                  value={formData.all_day ? formData.start.split('T')[0] : formData.start}
+                  onChange={(e) => setFormData({ ...formData, start: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  End
+                </label>
+                <input
+                  type={formData.all_day ? 'date' : 'datetime-local'}
+                  value={formData.all_day ? formData.end.split('T')[0] : formData.end}
+                  onChange={(e) => setFormData({ ...formData, end: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Location
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                placeholder="Add location"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none resize-none"
+                placeholder="Add description"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updateEvent.isPending}
+                className="px-4 py-2 text-sm bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/50 text-white rounded-lg transition-colors"
+              >
+                {updateEvent.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-md mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
           <h3 className="text-lg font-semibold text-white truncate pr-4">{event.summary}</h3>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 text-slate-400 hover:text-purple-400 transition-colors"
+              title="Edit event"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             <button
               onClick={handleDelete}
               disabled={deleteEvent.isPending}
