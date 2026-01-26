@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,14 +11,19 @@ import {
   Trash2,
   Pencil,
   AlertCircle,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import {
   useCalendarEvents,
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
   useDeleteCalendarEvent,
+  useAgendaItems,
   type CalendarEvent,
   type CalendarEventCreateInput,
+  type AgendaItem,
 } from '@/hooks/useHub';
 import {
   format,
@@ -37,14 +43,25 @@ import {
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type CalendarViewMode = 'month' | 'week' | 'day';
+type CalendarViewMode = 'month' | 'week' | 'day' | 'agenda';
 
 export function CalendarView() {
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedAgendaItem, setSelectedAgendaItem] = useState<AgendaItem | null>(null);
+
+  // Sync view mode with URL search params
+  const urlView = searchParams.get('view') as CalendarViewMode | null;
+  const viewMode: CalendarViewMode = urlView && ['month', 'week', 'day', 'agenda'].includes(urlView)
+    ? urlView
+    : 'month';
+
+  const setViewMode = (mode: CalendarViewMode) => {
+    setSearchParams({ view: mode });
+  };
 
   // Calculate date range based on view
   const dateRange = useMemo(() => {
@@ -62,6 +79,11 @@ export function CalendarView() {
       case 'day':
         start = currentDate;
         end = currentDate;
+        break;
+      case 'agenda':
+        // Agenda shows next 14 days by default
+        start = currentDate;
+        end = addDays(currentDate, 14);
         break;
     }
 
@@ -97,6 +119,9 @@ export function CalendarView() {
       case 'day':
         setCurrentDate(addDays(currentDate, delta));
         break;
+      case 'agenda':
+        setCurrentDate(addDays(currentDate, delta * 14));
+        break;
     }
   };
 
@@ -115,6 +140,9 @@ export function CalendarView() {
         return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
       case 'day':
         return format(currentDate, 'EEEE, MMMM d, yyyy');
+      case 'agenda':
+        const agendaEnd = addDays(currentDate, 14);
+        return `${format(currentDate, 'MMM d')} - ${format(agendaEnd, 'MMM d, yyyy')}`;
     }
   };
 
@@ -186,7 +214,7 @@ export function CalendarView() {
             New Event
           </button>
           <div className="flex items-center gap-1 ml-4">
-            {(['day', 'week', 'month'] as CalendarViewMode[]).map((mode) => (
+            {(['day', 'week', 'month', 'agenda'] as CalendarViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -228,6 +256,27 @@ export function CalendarView() {
               selectedDate={selectedDate}
               onSelectDate={handleDateClick}
               onEventClick={handleEventClick}
+            />
+          ) : viewMode === 'agenda' ? (
+            <AgendaView
+              startDate={currentDate}
+              endDate={addDays(currentDate, 14)}
+              onEventClick={(item) => {
+                if (item.type === 'event') {
+                  // Convert agenda item to CalendarEvent for the modal
+                  setSelectedEvent({
+                    id: item.id.replace('event_', ''),
+                    summary: item.title,
+                    description: item.description,
+                    location: item.location,
+                    start: item.start,
+                    end: item.end || item.start,
+                    all_day: item.all_day,
+                  });
+                } else {
+                  setSelectedAgendaItem(item);
+                }
+              }}
             />
           ) : (
             <DayView
@@ -989,5 +1038,230 @@ function DayView({
         </div>
       </div>
     </div>
+  );
+}
+
+// Agenda View Component - Shows events and tasks grouped by date
+function AgendaView({
+  startDate,
+  endDate,
+  onEventClick,
+}: {
+  startDate: Date;
+  endDate: Date;
+  onEventClick: (item: AgendaItem) => void;
+}) {
+  const { data, isLoading } = useAgendaItems({
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString(),
+  });
+
+  const items = data?.items || [];
+
+  // Group items by date
+  const itemsByDate = useMemo(() => {
+    const grouped: Record<string, AgendaItem[]> = {};
+    items.forEach((item) => {
+      const dateKey = format(parseISO(item.start), 'yyyy-MM-dd');
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(item);
+    });
+
+    // Sort items within each day by time
+    Object.keys(grouped).forEach((dateKey) => {
+      grouped[dateKey].sort((a, b) => {
+        // All-day items first
+        if (a.all_day && !b.all_day) return -1;
+        if (!a.all_day && b.all_day) return 1;
+        // Then by start time
+        return new Date(a.start).getTime() - new Date(b.start).getTime();
+      });
+    });
+
+    return grouped;
+  }, [items]);
+
+  // Get sorted date keys
+  const sortedDates = Object.keys(itemsByDate).sort();
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (sortedDates.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-slate-400">
+        <CalendarIcon className="w-12 h-12 mb-4 opacity-50" />
+        <p className="text-lg font-medium">No upcoming events or tasks</p>
+        <p className="text-sm mt-1">Your agenda is clear for the next 2 weeks</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-4">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {sortedDates.map((dateKey) => {
+          const date = parseISO(dateKey);
+          const dayItems = itemsByDate[dateKey];
+          const today = isToday(date);
+
+          return (
+            <div key={dateKey}>
+              {/* Date header */}
+              <div className={cn(
+                'sticky top-0 z-10 py-2 px-3 rounded-lg mb-3',
+                today ? 'bg-purple-500/20' : 'bg-slate-800/80 backdrop-blur-sm'
+              )}>
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    'w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold',
+                    today ? 'bg-purple-500 text-white' : 'bg-slate-700 text-slate-300'
+                  )}>
+                    {format(date, 'd')}
+                  </div>
+                  <div>
+                    <p className={cn(
+                      'font-medium',
+                      today ? 'text-purple-300' : 'text-white'
+                    )}>
+                      {today ? 'Today' : format(date, 'EEEE')}
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      {format(date, 'MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items for this date */}
+              <div className="space-y-2 pl-2">
+                {dayItems.map((item) => (
+                  <AgendaItemCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => onEventClick(item)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Individual agenda item card
+function AgendaItemCard({
+  item,
+  onClick,
+}: {
+  item: AgendaItem;
+  onClick: () => void;
+}) {
+  const isEvent = item.type === 'event';
+  const isTask = item.type === 'task';
+  const isCompleted = item.status === 'completed';
+
+  // Priority badge colors
+  const priorityColors: Record<string, string> = {
+    urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
+    high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    low: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full text-left p-3 rounded-lg border transition-colors',
+        isEvent
+          ? 'bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20'
+          : 'bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20',
+        isCompleted && 'opacity-60'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        {/* Icon */}
+        <div className={cn(
+          'mt-0.5',
+          isEvent ? 'text-purple-400' : 'text-blue-400'
+        )}>
+          {isEvent ? (
+            <CalendarIcon className="w-5 h-5" />
+          ) : isCompleted ? (
+            <CheckCircle2 className="w-5 h-5 text-green-400" />
+          ) : (
+            <Circle className="w-5 h-5" />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className={cn(
+              'font-medium truncate',
+              isEvent ? 'text-purple-200' : 'text-blue-200',
+              isCompleted && 'line-through'
+            )}>
+              {item.title}
+            </p>
+            {item.is_important && (
+              <span className="text-yellow-400 text-xs">*</span>
+            )}
+          </div>
+
+          {/* Time and location */}
+          <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
+            {item.all_day ? (
+              <span>All day</span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {format(parseISO(item.start), 'h:mm a')}
+                {item.end && ` - ${format(parseISO(item.end), 'h:mm a')}`}
+              </span>
+            )}
+            {item.location && (
+              <span className="flex items-center gap-1 truncate">
+                <MapPin className="w-3 h-3" />
+                {item.location}
+              </span>
+            )}
+          </div>
+
+          {/* Description preview */}
+          {item.description && (
+            <p className="mt-1 text-sm text-slate-500 line-clamp-1">
+              {item.description}
+            </p>
+          )}
+
+          {/* Task priority badge */}
+          {isTask && item.priority && (
+            <span className={cn(
+              'inline-block mt-2 px-2 py-0.5 text-xs rounded border',
+              priorityColors[item.priority] || priorityColors.medium
+            )}>
+              {item.priority}
+            </span>
+          )}
+        </div>
+
+        {/* Color indicator for calendar */}
+        {item.color && (
+          <div
+            className="w-1 h-full min-h-[40px] rounded-full"
+            style={{ backgroundColor: item.color }}
+          />
+        )}
+      </div>
+    </button>
   );
 }

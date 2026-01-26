@@ -85,6 +85,28 @@ export interface CalendarEventsResponse {
   source: string;
 }
 
+export interface AgendaItem {
+  id: string;  // "event_123" or "task_456"
+  type: 'event' | 'task';
+  title: string;
+  description?: string;
+  start: string;
+  end?: string;
+  all_day: boolean;
+  location?: string;
+  status?: string;
+  priority?: string;
+  is_important?: boolean;
+  calendar_id?: number;
+  color?: string;
+}
+
+export interface AgendaResponse {
+  items: AgendaItem[];
+  start_date: string;
+  end_date: string;
+}
+
 export interface WeatherCondition {
   temp_f: number;
   temp_c: number;
@@ -558,6 +580,27 @@ export function useDeleteCalendarEvent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calendarEvents'] });
     },
+  });
+}
+
+// Agenda items - combined events and tasks
+async function fetchAgendaItems(params: { start_date: string; end_date: string }): Promise<AgendaResponse> {
+  const searchParams = new URLSearchParams({
+    start_date: params.start_date,
+    end_date: params.end_date,
+  });
+  const res = await fetch(`${API_BASE}/api/calendar/agenda?${searchParams}`, {
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch agenda items');
+  return res.json();
+}
+
+export function useAgendaItems(params: { start_date: string; end_date: string }) {
+  return useQuery({
+    queryKey: ['agenda', params],
+    queryFn: () => fetchAgendaItems(params),
+    enabled: isAuthenticated() && !!params.start_date && !!params.end_date,
   });
 }
 
